@@ -4,7 +4,7 @@ import { today, nowIso } from '../lib/dates.mjs';
 import { EDITIONS } from '../lib/subjects.mjs';
 import { saveImage } from '../lib/images.mjs';
 import {
-  assert, checkSubject, checkCategory, checkStatus, checkId, checkText,
+  assert, checkSubject, checkCategory, checkStatus, checkId, checkText, checkSubtype,
   notFound, conflict, assertTextbookCompatible, textbookFieldsFromNode,
 } from '../lib/validation.mjs';
 
@@ -171,12 +171,27 @@ export function createMistakesRouter({ db, dataDir }) {
     const body = req.body ?? {};
     const target = body.status ? checkStatus(body.status) : 'diagnosing';
     assert(['diagnosing', 'correcting'].includes(target), '诊断接口只允许 diagnosing / correcting', 'INVALID_TARGET');
-    if (body.error_category !== undefined && body.error_category !== null && body.error_category !== '') {
-      checkCategory(body.error_category);
-    }
     const current = db.prepare('SELECT * FROM mistakes WHERE id = ?').get(id);
     if (!current) notFound('错题不存在');
     assert(['new', 'diagnosing', 'correcting'].includes(current.status), '当前状态不允许再诊断', 'INVALID_STATE');
+
+    // 错因大类与子类必须同科目同大类：语文不能挂数学的「计算失误」。
+    // 这次没碰错因字段就不校验，避免旧数据挡住改别的字段。
+    const patch = { ...body };
+    if (body.error_category !== undefined) {
+      patch.error_category = body.error_category === null || body.error_category === ''
+        ? null
+        : checkCategory(body.error_category);
+    }
+    if (body.error_subtype !== undefined) {
+      patch.error_subtype = body.error_subtype === null || body.error_subtype === '' ? null : body.error_subtype;
+    }
+    if (body.error_reason !== undefined) patch.error_reason = checkText(body.error_reason, '错因说明');
+    if (body.error_category !== undefined || body.error_subtype !== undefined) {
+      const effectiveCategory = patch.error_category !== undefined ? patch.error_category : current.error_category;
+      const effectiveSubtype = patch.error_subtype !== undefined ? patch.error_subtype : current.error_subtype;
+      checkSubtype(current.subject, effectiveCategory, effectiveSubtype);
+    }
 
     const conclusion = body.student_conclusion !== undefined
       ? checkText(body.student_conclusion, '学生结论')
@@ -203,9 +218,9 @@ export function createMistakesRouter({ db, dataDir }) {
     for (const key of allowed) {
       // 挂了节点时，教材字段由节点决定，请求体里的同名字段忽略。
       if (nodeRow && ['unit_no', 'unit_title', 'lesson_title'].includes(key)) continue;
-      if (body[key] !== undefined) {
+      if (patch[key] !== undefined) {
         sets.push(`${key} = ?`);
-        params.push(body[key]);
+        params.push(patch[key]);
       }
     }
     if (nodeRow) {

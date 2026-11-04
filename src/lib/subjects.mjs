@@ -49,3 +49,12 @@ export const VARIANT_RULES = {
 export function subtypesFor(subject, category) {
   return [...(ERROR_SUBTYPES[subject]?.[category] ?? []), UNCLASSIFIED];
 }
+
+// 某科目全部可用子类型（跨大类去重），用于报错时告诉老师「这个科目能选什么」。
+export function allSubtypesFor(subject) {
+  const byCategory = ERROR_SUBTYPES[subject] ?? {};
+  const all = [...new Set(Object.values(byCategory).flat())];
+  return [...all, UNCLASSIFIED];
+}
+
+export const SUBJECT_LABEL = { math: '数学', chinese: '语文', english: '英语' };

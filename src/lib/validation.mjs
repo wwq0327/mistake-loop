@@ -1,4 +1,5 @@
 import { SUBJECTS, CATEGORIES, LEVELS, EVIDENCE_KINDS, STATUSES } from '../state-machine.mjs';
+import { subtypesFor, allSubtypesFor, SUBJECT_LABEL, UNCLASSIFIED } from './subjects.mjs';
 
 export class ValidationError extends Error {
   constructor(message, code = 'INVALID_INPUT') {
@@ -41,6 +42,25 @@ export const checkLevel = (v) => oneOf(v, LEVELS, 'level');
 export const checkStatus = (v) => oneOf(v, STATUSES, 'status');
 export const checkEvidence = (v) => oneOf(v, EVIDENCE_KINDS, 'evidence_type');
 export const checkResult = (v) => oneOf(v, ['correct', 'wrong'], 'result');
+
+// 三科分开：错因子类型必须取自该科目该大类的字典，不共用数学那一套。
+// 语文题挂「计算失误」这类越界写法一律拒绝，并告诉老师这个科目能选什么。
+export function checkSubtype(subject, category, value) {
+  if (value === undefined || value === null || value === '') return value ?? null;
+  assert(typeof value === 'string', '错因子类型必须是文本', 'INVALID_TYPE');
+  const allowed = category ? subtypesFor(subject, category) : [UNCLASSIFIED];
+  if (!allowed.includes(value)) {
+    const label = SUBJECT_LABEL[subject] ?? subject;
+    const scope = category
+      ? `该大类下可用：${allowed.join('、')}`
+      : `还没定错因大类，只能填「${UNCLASSIFIED}」`;
+    throw new ValidationError(
+      `${label}没有「${value}」这个子类型，${label}可用：${allSubtypesFor(subject).join('、')}（${scope}）`,
+      'INVALID_SUBTYPE',
+    );
+  }
+  return value;
+}
 
 export function checkDate(v) {
   assert(typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v), '日期格式应为 YYYY-MM-DD', 'INVALID_DATE');

@@ -3,7 +3,7 @@
 | 项 | 值 |
 | --- | --- |
 | 仓库 | https://github.com/wwq0327/mistake-loop |
-| Issue 总数 | 39 |
+| Issue 总数 | 42 |
 | 生成依据 | `docs/requirements/PRD.md`（v2 增量 F15-F27 / U1-U8 / B1-B12）、`docs/plans/2026-11-04-v2-plan.md` 第九节 |
 | 校验命令 | `node scripts/check-issue-map.mjs`，由 `test/issue-map.test.mjs` 测试先行守护 |
 
@@ -52,6 +52,9 @@
 | #37 | P10 P10 数据一致性与验收口径 | B10 | [修复 B10 图片计数口径，验收不再误报 FAIL](https://github.com/wwq0327/mistake-loop/issues/37) |
 | #38 | P10 P10 数据一致性与验收口径 | F15 / B10 | [图片孤儿盘点与归档：磁盘有、库无引用的图片必须看得见](https://github.com/wwq0327/mistake-loop/issues/38) |
 | #39 | P10 P10 数据一致性与验收口径 | B1 / B10 | [验收快照改为一致性复制：不再逐个拷贝 db + wal + shm](https://github.com/wwq0327/mistake-loop/issues/39) |
+| #40 | P11 P11 补齐老师的工作流入口 | F03 | [题目详情页补齐变式录入入口：现在老师无法让任何一道题走到「复习中」](https://github.com/wwq0327/mistake-loop/issues/40) |
+| #41 | P11 P11 补齐老师的工作流入口 | F02 | [题目详情页补齐错因录入：错因四分法现在在系统里永远是空的](https://github.com/wwq0327/mistake-loop/issues/41) |
+| #42 | P11 P11 补齐老师的工作流入口 | F12 / 第六节硬约束 | [后端校验错因子子类型：现在语文题可以挂数学的「计算失误」](https://github.com/wwq0327/mistake-loop/issues/42) |
 
 ## 阶段汇总
 
@@ -68,5 +71,6 @@
 | P8 P8 硬化与守护 | 4 |
 | P9 P9 收件箱补缺 | 4 |
 | P10 P10 数据一致性与验收口径 | 3 |
+| P11 P11 补齐老师的工作流入口 | 3 |
 
 新增 Issue 时：同步更新 `scripts/check-issue-map.mjs` 的 `EXPECTED_COUNT`，重跑测试与校验脚本。README 与发布说明里的 Issue 总数、用例数由 `scripts/check-docs.mjs` 守着，写了就必须等于真实来源，不许手抄。

@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 
 // 新增 Issue 时同步改这里，并由 scripts/gen-issue-map 重新生成映射表。
-export const EXPECTED_COUNT = 39;
+export const EXPECTED_COUNT = 42;
 const DEFAULT_PATH = fileURLToPath(new URL('../docs/github/issue-map.md', import.meta.url));
 
 export function checkIssueMap(path = DEFAULT_PATH) {
