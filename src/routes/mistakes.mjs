@@ -7,6 +7,7 @@ import {
   assert, checkSubject, checkCategory, checkStatus, checkId, checkText, checkSubtype,
   notFound, conflict, assertTextbookCompatible, textbookFieldsFromNode,
 } from '../lib/validation.mjs';
+import { DIAGNOSABLE_STATUSES } from '../state-machine.mjs';
 
 const COLUMNS = [
   'source_ref', 'student_id', 'textbook_node_id', 'subject', 'edition', 'grade', 'semester',
@@ -173,7 +174,7 @@ export function createMistakesRouter({ db, dataDir }) {
     assert(['diagnosing', 'correcting'].includes(target), '诊断接口只允许 diagnosing / correcting', 'INVALID_TARGET');
     const current = db.prepare('SELECT * FROM mistakes WHERE id = ?').get(id);
     if (!current) notFound('错题不存在');
-    assert(['new', 'diagnosing', 'correcting'].includes(current.status), '当前状态不允许再诊断', 'INVALID_STATE');
+    assert(DIAGNOSABLE_STATUSES.includes(current.status), '当前状态不允许再诊断', 'INVALID_STATE');
 
     // 错因大类与子类必须同科目同大类：语文不能挂数学的「计算失误」。
     // 这次没碰错因字段就不校验，避免旧数据挡住改别的字段。

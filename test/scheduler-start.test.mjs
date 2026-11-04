@@ -183,7 +183,15 @@ test('#55 触发后重排一条新链，延迟按当下重新算', () => {
   });
   clock.fireNext();
   assert.equal(clock.live(), 1, '触发后应重新排一条链，不多不少');
-  assert.equal(clock.delays()[0], nextRunDelay(), '重排的延迟应按触发当下的时间算');
+  // 用容差比较，不做精确相等：nextRunDelay() 的结果含秒与毫秒，
+  // 「重排那一刻」与「断言那一刻」差上一两毫秒是正常的，
+  // 精确相等会变成随机红灯（实测每几十次红一次，CI 上就是随机失败）。
+  // 这里要验的是「按触发当下的时间重算」——若重排改用了启动时注入的 now，
+  // 差值是小时级的，容差再宽也抓得住。
+  const actual = clock.delays()[0];
+  const expected = nextRunDelay();
+  assert.ok(Math.abs(actual - expected) <= 1000,
+    `重排的延迟应按当下重算：实际 ${actual}，当下应为 ${expected} 附近`);
   scheduler.stop();
   closeDb(db);
 });

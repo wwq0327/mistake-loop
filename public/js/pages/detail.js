@@ -13,6 +13,18 @@ const CATEGORY_LABEL = {
   conceptual: '概念不清', procedural: '步骤出错', metacognitive: '策略习惯', factual: '知识遗忘',
 };
 
+// 允许做诊断的状态白名单的本地兜底。
+// 事实源在服务端（src/state-machine.mjs 的 DIAGNOSABLE_STATUSES，通过 /api/meta 下发），
+// 这份只在 /api/meta 拿不到时顶上。两处必须一致——
+// test/detail-action-gate.test.mjs 锁住这一点，免得日后只改一处。
+export const DIAGNOSABLE_FALLBACK = ['new', 'diagnosing', 'correcting'];
+
+// 不能诊断时要说清为什么，而不是光把按钮藏起来。
+const NOT_DIAGNOSABLE_HINT = {
+  reviewing: '这题已经在「复习中」了，不能再退回纠错中——要改错因，先看复习留痕。',
+  mastered: '这题已经「已掌握」，不能再退回纠错中：推回去会把掌握成果作废。',
+};
+
 function nextRequirement(item) {
   const evidenceCount = item.mastery_evidence?.length ?? 0;
   const conclusion = String(item.student_conclusion || '').trim();
@@ -91,6 +103,14 @@ export async function mount({ root, api }) {
   const categories = meta?.categories ?? ['conceptual', 'procedural', 'metacognitive', 'factual'];
   const subtypes = meta?.errorSubtypes?.[item.subject] ?? {};
   const unclassified = meta?.unclassified ?? '待归类';
+
+  // 状态闸门：只有白名单里的状态能记错因、才能推进到「纠错中」。
+  // 后端 PATCH /mistakes/:id/diagnosis 是同一个接口、同一条断言，
+  // 界面先把话说清楚，别让老师去撞那个 409（#57）。
+  const diagnosable = meta?.diagnosableStatuses ?? DIAGNOSABLE_FALLBACK;
+  const canDiagnose = diagnosable.includes(item.status);
+  const notDiagnosableHint = NOT_DIAGNOSABLE_HINT[item.status]
+    ?? '这道题已不在诊断阶段，不能再记错因或推进状态。';
 
   const categoryField = el('div', 'field');
   const categoryLabelEl = el('label', '', '错因大类');
@@ -171,7 +191,11 @@ export async function mount({ root, api }) {
   });
   diagnosis.append(categoryField, subtypeField, reasonField);
   const causeRow = el('div', 'row');
-  causeRow.append(saveCause, el('span', 'field__hint', '错因按科目分列：语文只收已验证过的子类，英语先留「待归类」。'));
+  if (canDiagnose) {
+    causeRow.append(saveCause, el('span', 'field__hint', '错因按科目分列：语文只收已验证过的子类，英语先留「待归类」。'));
+  } else {
+    causeRow.append(el('span', 'field__hint', notDiagnosableHint));
+  }
   diagnosis.append(causeRow);
 
   const conclusionField = el('div', 'field');
@@ -205,7 +229,11 @@ export async function mount({ root, api }) {
   conclusionInput.addEventListener('input', () => {
     advance.disabled = !conclusionInput.value.trim();
   });
-  gateRow.append(advance, el('span', 'field__hint', '结论为空则不能进入纠错中；先让学生自己说出来，老师再记录。'));
+  if (canDiagnose) {
+    gateRow.append(advance, el('span', 'field__hint', '结论为空则不能进入纠错中；先让学生自己说出来，老师再记录。'));
+  } else {
+    gateRow.append(el('span', 'field__hint', notDiagnosableHint));
+  }
   diagnosis.append(gateRow);
 
   // 三层变式审核 + 录入。

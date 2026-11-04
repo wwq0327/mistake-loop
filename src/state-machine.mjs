@@ -51,6 +51,12 @@ export function applyReview({ mistake, result, today, evidenceCount = 0 }) {
   };
 }
 
+// 允许做诊断的状态白名单：这三态才能记错因、才能推进到「纠错中」。
+// 复习中与已掌握的题不再走诊断流程——把它们推回纠错中等于作废已有的复习成果。
+// 后端 PATCH /mistakes/:id/diagnosis 与详情页的动作按钮共用这一份：
+// 服务端通过 /api/meta 下发，前端本地那份只是兜底，两处由测试锁住必须一致（#57）。
+export const DIAGNOSABLE_STATUSES = ['new', 'diagnosing', 'correcting'];
+
 // 变式审核允许的前置状态：诊断中与纠错中。
 // 拦的是那三种「审核变式会毁掉已有成果或跳过诊断」的状态：
 //   new      —— 刚录入、还没诊断，直接三层全过就进复习中，等于跳过诊断阶段；
