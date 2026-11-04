@@ -13,6 +13,7 @@
     "start": "node src/server.mjs",
     "test": "node --test test/*.test.mjs",
     "check": "for f in $(find src scripts test -name '*.mjs'); do node --check \"$f\" || exit 1; done && node --check public/app.js && node scripts/check-issue-map.mjs",
+    "migrate:v2": "node scripts/migrate-v2.mjs",
     "import:legacy": "node scripts/import-legacy.mjs",
     "backup": "node scripts/backup.mjs"
   },
