@@ -70,6 +70,16 @@ test('#34 识别框可拖动可删除、草稿可新增', () => {
   assert.match(source, /['`]\/api\/recognition-drafts['`]\s*,\s*\{[^}]*method:\s*'POST'/, '新增草稿没有走 POST 接口');
 });
 
+test('#35 多张照片排队：一次多选、逐张上传、一张失败不拖累其余', () => {
+  assert.match(html, /<input[^>]*id="inbox-file"[^>]*multiple/, '上传控件没有 multiple，一次只能选一张');
+  const source = js();
+  assert.doesNotMatch(source, /files\?\.\[0\]/, '仍在只取第一张文件，其余会被静默丢弃');
+  assert.match(source, /Array\.from\(\s*(?:fileList|files)/, '没有把选中的文件转成队列');
+  assert.match(source, /enqueueFiles|\bqueue\b/, '没有队列结构');
+  assert.match(source, /已收件|收件\s*\{|共\s*M\s*张|queue/i, '缺队列进度呈现');
+  assert.match(source, /input\.value\s*=\s*['"]{2}/, '选完没清空 input.value，同一批文件再选一次不会触发 change');
+});
+
 test('#18 页面仍遵守 UI 静态规范（无硬编码色值、无 innerHTML 赋值）', () => {
   const source = js();
   assert.doesNotMatch(source, /#[0-9a-fA-F]{3,8}\b/, 'JS 内出现硬编码色值');

@@ -75,6 +75,10 @@ export async function mount({ root, api, state }) {
   let jobs = [];
   let currentId = null;
   const inFlight = new Set();
+  const queueBox = document.getElementById('inbox-queue');
+  // 多张照片共用一个队列：files 待传，total/done/ok 计进度，failed 记失败的。
+  const queue = { files: [], total: 0, done: 0, ok: 0, pending: 0, failed: [] };
+  let pumping = false;
 
   root.replaceChildren(alert(state.aiEnabled
     ? 'AI 识别已开启。识别结果只写进草稿，逐题确认后才成为错题。'
@@ -478,31 +482,83 @@ export async function mount({ root, api, state }) {
     }
   }
 
-  async function upload(file) {
-    if (!file) return;
-    try {
-      const original = await readFileAsDataUrl(file);
-      const derived = await compressImage(original);
-      const created = await api('/api/recognitions', {
-        method: 'POST',
-        body: { image: original, derived: derived || null },
-      });
-      currentId = created.jobId;
-      notify(`照片 #${created.jobId} 已收件。${state.aiEnabled ? '识别在后台进行，稍后自动刷新。' : 'AI 未启用，已生成空白草稿。'}`);
-      await refresh();
-      if (state.aiEnabled) {
-        for (let i = 0; i < 10; i += 1) {
-          await new Promise((resolve) => setTimeout(resolve, 1500));
-          const detail = await api(`/api/recognitions/${currentId}`);
-          if (['done', 'partial', 'failed'].includes(detail.job.status)) { await refresh(); break; }
-        }
+  // 单张收件：只负责把这张照片送进收件箱，失败由调用方决定怎么处理。
+  async function submitImage(file) {
+    const original = await readFileAsDataUrl(file);
+    const derived = await compressImage(original);
+    const created = await api('/api/recognitions', {
+      method: 'POST',
+      body: { image: original, derived: derived || null },
+    });
+    return created;
+  }
+
+  // 队列进度：已收件 N / 共 M 张，失败的几张单独点名。
+  function renderQueue() {
+    if (!queueBox) return;
+    if (!queue.total) {
+      queueBox.replaceChildren();
+      return;
+    }
+    const parts = [`已收件 ${queue.done} / 共 ${queue.total} 张`];
+    if (queue.failed.length) parts.push(`${queue.failed.length} 张失败`);
+    if (queue.pending) parts.push(`排队中 ${queue.pending} 张`);
+    queueBox.replaceChildren(el('span', 'small muted', parts.join(' · ')));
+  }
+
+  // 多张照片排队：一次多选或连续拍都进同一个队列，逐张上传。
+  // 一张失败不拖累其余——失败的张单独记下来，其余照常收件。
+  async function pump() {
+    if (pumping) return;
+    pumping = true;
+    while (queue.files.length) {
+      const file = queue.files.shift();
+      queue.pending = queue.files.length;
+      renderQueue();
+      try {
+        const created = await submitImage(file);
+        currentId = created.jobId;
+        queue.ok += 1;
+      } catch (error) {
+        queue.failed.push(file.name || '未命名文件');
       }
-    } catch (error) {
-      notify(`上传失败：${error.message}，可重试或手工录入。`, 'error');
+      queue.done += 1;
+      renderQueue();
+    }
+    queue.pending = 0;
+    pumping = false;
+    renderQueue();
+    await refresh();
+    const failed = queue.failed.length;
+    notify(
+      `本批收件 ${queue.ok} 张${failed ? `，${failed} 张失败（${queue.failed.join('、')}）` : ''}。`
+      + (state.aiEnabled ? '识别在后台进行，稍后自动刷新。' : 'AI 未启用，已生成空白草稿。'),
+      failed ? 'warn' : 'info',
+    );
+    if (state.aiEnabled) {
+      for (let i = 0; i < 10; i += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        const detail = await api(`/api/recognitions/${currentId}`);
+        if (['done', 'partial', 'failed'].includes(detail.job.status)) { await refresh(); break; }
+      }
     }
   }
 
-  input.addEventListener('change', (event) => upload(event.target.files?.[0]));
+  function enqueueFiles(fileList) {
+    const picked = Array.from(fileList || []);
+    if (!picked.length) return;
+    queue.files.push(...picked);
+    queue.total += picked.length;
+    renderQueue();
+    void pump();
+  }
+
+  input.addEventListener('change', (event) => {
+    const picked = event.target.files;
+    enqueueFiles(picked);
+    // 清空：否则同一批文件再选一次，value 没变就不会触发 change。
+    input.value = '';
+  });
   manualButton.addEventListener('click', () => {
     const first = draftsBox.querySelector('.card');
     if (first) { first.scrollIntoView({ behavior: 'smooth' }); first.querySelector('textarea')?.focus(); }

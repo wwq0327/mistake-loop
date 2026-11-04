@@ -43,9 +43,10 @@
               <div class="card__body">
                 <div class="field">
                   <label for="inbox-file">拍照或选择题目照片</label>
-                  <input id="inbox-file" class="input" type="file" accept="image/*" capture="environment">
+                  <input id="inbox-file" class="input" type="file" accept="image/*" capture="environment" multiple>
                 </div>
                 <p class="field__hint">原图始终留在本机；只有开启 AI 后才会把压缩图发往你配置的服务商。</p>
+                <div id="inbox-queue" class="row" aria-live="polite"></div>
                 <div id="inbox-job-picker" class="row"></div>
               </div>
             </section>
