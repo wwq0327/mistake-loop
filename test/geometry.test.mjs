@@ -25,11 +25,38 @@ test('#45 缺省与非法宽高走 fallback（宽 400、高 300）', () => {
     'NaN 与 undefined 应退回 fallback');
 });
 
-test('#45 已知怪癖：null 被当成 0，宽高被压到下限而不是走 fallback', () => {
-  // num() 用 Number() 转换，Number(null) 是 0（有限数），于是走不到 fallback。
-  // 后果：宽高被钳到下限 50，而不是缺省的 400/300。属于待修缺陷，见 #47。
-  assert.match(renderGeometry({ width: null, height: null, shapes: [] }), /viewBox="0 0 50 50"/,
-    '当前实现把 null 当 0');
+test('#47 空值走 fallback：null / undefined / 空串都不该被当成 0', () => {
+  // 数字 0 是合法值（坐标在原点），但 null 不是——Number(null) 是 0，
+  // 一旦被当成 0，宽高会被压到下限、线宽与字号变 0，画出来的图直接看不见。
+  assert.match(renderGeometry({ width: null, height: null, shapes: [] }), /viewBox="0 0 400 300"/,
+    'null 宽高应走 fallback，而不是被压到下限 50');
+  assert.match(renderGeometry({ width: '', height: '', shapes: [] }), /viewBox="0 0 400 300"/,
+    '空串宽高应走 fallback');
+  assert.match(renderGeometry({ width: undefined, height: undefined, shapes: [] }), /viewBox="0 0 400 300"/,
+    'undefined 宽高应走 fallback');
+});
+
+test('#47 null 线宽与字号不能变成 0：线段与文字不许画成看不见', () => {
+  const svg = renderGeometry({
+    width: 200, height: 120,
+    shapes: [
+      { type: 'line', x1: 0, y1: 0, x2: 100, y2: 100, width: null },
+      { type: 'text', x: 0, y: 20, size: null, text: '8cm' },
+    ],
+  });
+  assert.match(svg, /stroke-width="2"/, 'null 线宽应走缺省 2');
+  assert.match(svg, /font-size="14"/, 'null 字号应走缺省 14');
+  assert.doesNotMatch(svg, /stroke-width="0"/);
+  assert.doesNotMatch(svg, /font-size="0"/);
+});
+
+test('#47 真正的 0 仍然是 0：坐标在原点是合法的', () => {
+  const svg = renderGeometry({
+    width: 200, height: 120,
+    shapes: [{ type: 'line', x1: 0, y1: 0, x2: 100, y2: 100 }],
+  });
+  assert.match(svg, /x1="0" y1="0"/, '坐标 0 不能被当成空值');
+  assert.match(svg, /stroke-width="2"/, '缺省线宽仍是 2');
 });
 
 test('#45 数值字符串按数字处理，输出里不出现引号包着的数字', () => {

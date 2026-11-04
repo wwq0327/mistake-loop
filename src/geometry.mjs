@@ -1,6 +1,9 @@
 import { escapeHtml } from './lib/validation.mjs';
 
 function num(value, fallback = 0) {
+  // 空值与数字 0 要分开：Number(null) 是 0（有限数），直接转换会让 null 绕过 fallback——
+  // 宽高被压到下限 50、线宽与字号变成 0，画出来的东西直接看不见（见 #47）。
+  if (value === null || value === undefined || value === '') return fallback;
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
 }
