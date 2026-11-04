@@ -186,3 +186,44 @@ test('#31 发布说明里的 Issue 总数同样受守护', () => {
     assert.match(out.errors.join(' '), new RegExp(RELEASE.replace(/\//g, '\\/')), '错误信息未点名发布说明文件');
   });
 });
+
+// ── #36 口径漂移：文档还写着「待拍板」「一行未改」，但活早干完了 ─────────────
+
+test('#36 真实仓库不得残留过时的口径', () => {
+  const out = checkDocs(ROOT);
+  assert.equal(out.ok, true, out.errors.join('; '));
+  assert.deepEqual(out.staleClaims, [], `仍有过时口径：${(out.staleClaims || []).join(' | ')}`);
+});
+
+test('#36 PRD 里出现「拍板前不开工」必须判失败，并点名文件与行号', () => {
+  const bad = '# PRD\n\n拍板前不开工。\n';
+  withRepo(undefined, (dir) => writeFileSync(join(dir, 'docs', 'requirements', 'PRD.md'), bad), (dir) => {
+    const out = checkDocs(dir);
+    assert.equal(out.ok, false, '过时的口径没有被判失败');
+    const hit = (out.staleClaims || []).find((e) => /PRD\.md/.test(e) && /拍板前不开工/.test(e));
+    assert.ok(hit, `错误信息未点名文件与原词：${(out.staleClaims || []).join(' | ')}`);
+    assert.match(hit, /第\s*\d+\s*行/, '错误信息未给行号');
+  });
+});
+
+test('#36 施工单里出现「一行未改」必须判失败', () => {
+  const plan = '# 施工单\n\n| 状态 | 一行未改 |\n';
+  withRepo(undefined, (dir) => {
+    mkdirSync(join(dir, 'docs', 'plans'), { recursive: true });
+    writeFileSync(join(dir, 'docs', 'plans', '2026-11-04-v2-plan.md'), plan);
+  }, (dir) => {
+    const out = checkDocs(dir);
+    assert.equal(out.ok, false, '过时的口径没有被判失败');
+    const hit = (out.staleClaims || []).find((e) => /v2-plan\.md/.test(e) && /一行未改/.test(e));
+    assert.ok(hit, `错误信息未点名文件与原词：${(out.staleClaims || []).join(' | ')}`);
+  });
+});
+
+test('#36 真实仓库的 PRD 与施工单都不含过时口径词', () => {
+  for (const rel of ['docs/requirements/PRD.md', 'docs/plans/2026-11-04-v2-plan.md']) {
+    const text = readFileSync(join(ROOT, rel), 'utf8');
+    for (const term of ['拍板前不开工', '一行未改', '待用户拍板', 'v2.0 草案']) {
+      assert.ok(!text.includes(term), `${rel} 仍写着「${term}」`);
+    }
+  }
+});

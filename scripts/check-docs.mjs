@@ -19,6 +19,24 @@ const RELEASE_TERMS = ['已完成', '未验证', 'MIT', '数据'];
 const ISSUE_COUNT_RE = /(\d+)\s*个\s*(?:Issue|编号)/g;
 const CASE_COUNT_RE = /(\d+)\s*个用例/g;
 
+// #36：口径漂移的第二类 —— 数字之外，文档还会写「这件事还没做」。
+// 文档写着「待拍板」「一行未改」「不建远程」，而活早干完了，读者会被直接误导。
+// PRD 是活文档（一直有效），全篇查；施工单是历史档案，只查它的状态区。
+const STALE_CLAIMS = [
+  {
+    file: 'docs/requirements/PRD.md',
+    terms: [
+      '拍板前不开工', '待拍板', 'v2.0 草案', '拍板时按编号确认或改',
+      '未创建远程仓库、未 push', '仍不建远程、不 push',
+    ],
+  },
+  {
+    file: 'docs/plans/2026-11-04-v2-plan.md',
+    terms: ['一行未改', '待用户拍板'],
+    maxLine: 12,
+  },
+];
+
 function localLinks(readme) {
   const links = [];
   for (const match of readme.matchAll(/\[[^\]]*\]\(([^)]+)\)/g)) {
@@ -82,11 +100,33 @@ function checkNumbers(root, issueCount, testCount) {
   return errors;
 }
 
+// #36：口径过时的文档，错误信息要点名文件、行号与原话。
+function checkStaleClaims(root) {
+  const errors = [];
+  for (const rule of STALE_CLAIMS) {
+    const path = join(root, rule.file);
+    if (!existsSync(path)) continue;
+    const lines = readFileSync(path, 'utf8').split('\n');
+    const limit = rule.maxLine ?? lines.length;
+    lines.slice(0, limit).forEach((line, index) => {
+      for (const term of rule.terms) {
+        if (line.includes(term)) {
+          errors.push(`${rule.file} 第 ${index + 1} 行：口径已过时——写着「${term}」，实际这件事已经做完，请回写当前状态`);
+        }
+      }
+    });
+  }
+  return errors;
+}
+
 export function checkDocs(root = DEFAULT_ROOT) {
   const errors = [];
   const readmePath = join(root, 'README.md');
   if (!existsSync(readmePath)) {
-    return { ok: false, links: 0, docs: 0, issueCount: EXPECTED_COUNT, testCount: 0, errors: ['README.md 不存在'] };
+    return {
+      ok: false, links: 0, docs: 0, issueCount: EXPECTED_COUNT, testCount: 0,
+      staleClaims: ['README.md 不存在'], errors: ['README.md 不存在'],
+    };
   }
   const readme = readFileSync(readmePath, 'utf8');
 
@@ -137,12 +177,17 @@ export function checkDocs(root = DEFAULT_ROOT) {
   }
   errors.push(...checkNumbers(root, EXPECTED_COUNT, counted.total));
 
+  // 6. #36 口径一致性：文档说「还没做」的地方，必须已经做完或改掉说法。
+  const staleClaims = checkStaleClaims(root);
+  errors.push(...staleClaims);
+
   return {
     ok: errors.length === 0,
     links: links.length,
     docs: docs.length,
     issueCount: EXPECTED_COUNT,
     testCount: counted.total,
+    staleClaims,
     errors,
   };
 }
