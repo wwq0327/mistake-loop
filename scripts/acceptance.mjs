@@ -297,18 +297,21 @@ async function main() {
   {
     const visual = checkVisual(root);
     const machine = `机器核对：\`node scripts/check-visual.mjs\` → ${visual.ok ? 'PASS' : 'FAIL'}（${visual.passed}/${visual.total} 项判定通过，${visual.checks.length} 组）：${visual.checks.map((c) => c.name).join('；')}；判定脚本只读，不改六页 HTML 与业务 JS`;
-    const human = '人工观感待用户判断：字距舒不舒服、墨色与朱红的比例好不好看，仍由你给结论；静态视觉稿 6 屏在 docs/design/ui-preview.html，实际六页在 /、/inbox、/mistake/:id、/print、/library、/settings，请对照审阅后由你判断，不由开发自评';
+    const human = '字距舒不舒服、墨色与朱红的比例好不好看，仍由你给结论；静态视觉稿 6 屏在 docs/design/ui-preview.html，实际六页在 /、/inbox、/mistake/:id、/print、/library、/settings，请对照审阅后由你判断，不由开发自评';
     record('B11', '视觉一致性', null, machine, {
       statusLabel: `机器核对 ${visual.ok ? 'PASS' : 'FAIL'}（${visual.passed}/${visual.total} 项判定通过，${visual.checks.length} 组）；人工观感待用户判断`,
-      extra: `人工观感：${human}`,
+      extra: `人工观感（待用户判断）：${human}`,
     });
   }
 
   // B12：本地与远程一致、工作区干净（排除本次验收交付物）。
   {
     const status = git(['status', '--porcelain']);
-    const changed = status.stdout.trim().split('\n').filter(Boolean)
-      .map((line) => line.trim().slice(3))
+    const changed = status.stdout.split('\n')
+      .filter((line) => line.trim().length > 0)
+      // porcelain 每行是「XY 路径」，路径从第 4 个字符开始；
+      // 先对整段输出 trim 会吃掉第一行的状态列，把文件名切掉首字。
+      .map((line) => line.slice(3).trim())
       .filter((path) => !DELIVERABLES.has(path));
     const head = git(['rev-parse', 'HEAD']).stdout.trim();
     const remote = git(['rev-parse', 'origin/main']).stdout.trim();

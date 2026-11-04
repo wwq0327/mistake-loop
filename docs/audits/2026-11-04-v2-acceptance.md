@@ -1,6 +1,6 @@
 # v2 B1–B12 全量验收与结果回读
 
-生成时间：2026-11-04T13:30:36.978Z
+生成时间：2026-11-04T15:25:54.832Z
 生成方式：`node scripts/acceptance.mjs`，逐项回读实际数字或复现步骤。
 
 总览：11 项 PASS / 0 项 FAIL / 1 项待判断（共 12 项）。
@@ -57,13 +57,14 @@
 
 ## B11 视觉一致性
 
-- 状态：待判断
-- 证据：待用户判断，不由开发自评：静态视觉稿 6 屏在 docs/design/ui-preview.html，实际六页在 /、/inbox、/mistake/:id、/print、/library、/settings；请对照审阅后由你给结论
+- 状态：机器核对 PASS（92/92 项判定通过，9 组）；人工观感待用户判断
+- 证据：机器核对：`node scripts/check-visual.mjs` → PASS（92/92 项判定通过，9 组）：靶子色板与 tokens 同名变量逐个相等；字号七阶 --font-1..7 齐全且严格递增；间距七阶 --space-1..7 齐全且严格递增；圆角 --radius-1..4 齐全且递增；阴影 --shadow-0..3 齐全且硬边偏移递增；六页都引用 tokens.css、都带 data-page 且互不相同；靶子六屏编号 01..06 齐全，且与六页一一对应；tokens.css 有深色覆盖块，且核心变量都被覆盖；print.css 打印时强制浅色底、关纸纹、卡片不跨页；判定脚本只读，不改六页 HTML 与业务 JS
+- 人工观感（待用户判断）：字距舒不舒服、墨色与朱红的比例好不好看，仍由你给结论；静态视觉稿 6 屏在 docs/design/ui-preview.html，实际六页在 /、/inbox、/mistake/:id、/print、/library、/settings，请对照审阅后由你判断，不由开发自评
 
 ## B12 本地与远程
 
 - 状态：PASS
-- 证据：除本次验收交付物 3 个文件外，工作区 0 项改动；HEAD 1b9ce64 与 origin/main 1b9ce64 一致；交付物提交后会再独立回读一次 git status
+- 证据：除本次验收交付物 3 个文件外，工作区 0 项改动；HEAD 76260c5 与 origin/main 76260c5 一致；交付物提交后会再独立回读一次 git status
 
 ## 第二层：四项实机 / 试运行未验证项
 
