@@ -6,16 +6,30 @@ on:
   pull_request:
     branches: [main]
 
+# 只读检出即可，不申请写权限。
+permissions:
+  contents: read
+
+# 同一分支只保留最新一次运行，避免排队堆积。
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
+    name: Node ${{ matrix.node }}
     runs-on: ubuntu-latest
+    strategy:
+      # 一个版本失败不取消另一个：Node 22 的结果必须独立可读。
+      fail-fast: false
+      # 22 是本机开发与交付基线；26 是生产容器锁的 LTS，做前瞻验证。
+      matrix:
+        node: ['22', '26']
     steps:
       - uses: actions/checkout@v4
-      # 与本机开发版本一致（Node 22 已实测 node:sqlite 可直接用）。
-      # 生产容器锁 node:26-slim，待 setup-node 对该版本稳定支持后加入矩阵。
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: ${{ matrix.node }}
           cache: npm
       - run: npm ci
       - run: npm run check
