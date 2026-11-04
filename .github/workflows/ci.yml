@@ -26,11 +26,88 @@ jobs:
       matrix:
         node: ['22', '26']
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      # checkout / setup-node 从 v5 起走 node24 runtime；v4 仍是 node20，runner 已移除支持。
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ matrix.node }}
           cache: npm
       - run: npm ci
       - run: npm run check
       - run: npm test
+
+  container:
+    name: 容器构建（amd64 + arm64）与健康回读
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # arm64 没有 runner 原生支持，靠 QEMU 模拟跑起来。
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+
+      - name: 多架构构建（只 build 不 push）
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: false
+          outputs: type=oci,dest=/tmp/ml-multiarch.tar
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: 确认多架构产物里两种架构都在
+        run: |
+          set -euo pipefail
+          tar -xOf /tmp/ml-multiarch.tar index.json | grep -q 'linux/amd64'
+          tar -xOf /tmp/ml-multiarch.tar index.json | grep -q 'linux/arm64'
+          echo "多架构产物含 linux/amd64 与 linux/arm64"
+
+      - name: 构建 amd64 可运行镜像
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: mistake-loop:amd64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: 构建 arm64 可运行镜像
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/arm64
+          load: true
+          push: false
+          tags: mistake-loop:arm64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: amd64 容器回读 /health
+        run: |
+          set -euo pipefail
+          test "$(docker inspect --format '{{.Config.User}}' mistake-loop:amd64)" = "node"
+          docker run -d --name ml-amd64 --platform linux/amd64 -p 8080:8080 -v ml-data-amd64:/data mistake-loop:amd64
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8080/health > /tmp/health-amd64.json; then break; fi
+            sleep 1
+          done
+          cat /tmp/health-amd64.json
+          grep -q '"ok":true' /tmp/health-amd64.json
+          grep -q '"db":"ok"' /tmp/health-amd64.json
+          docker rm -f ml-amd64
+
+      - name: arm64 容器回读 /health（QEMU 模拟）
+        run: |
+          set -euo pipefail
+          test "$(docker inspect --format '{{.Config.User}}' mistake-loop:arm64)" = "node"
+          docker run -d --name ml-arm64 --platform linux/arm64 -p 8080:8080 -v ml-data-arm64:/data mistake-loop:arm64
+          for i in $(seq 1 120); do
+            if curl -fsS http://127.0.0.1:8080/health > /tmp/health-arm64.json; then break; fi
+            sleep 1
+          done
+          cat /tmp/health-arm64.json
+          grep -q '"ok":true' /tmp/health-arm64.json
+          grep -q '"db":"ok"' /tmp/health-arm64.json
+          docker rm -f ml-arm64

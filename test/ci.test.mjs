@@ -72,3 +72,37 @@ test('#25 本地违规样例：check-ui 退出码 1，等价于 CI 转红', () =
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+// ── #29 CI 迁到 Node 24 runtime，并把容器构建纳入 CI ───────────────────────
+
+test('#29 CI 不再使用任何 node20 runtime 的 action 版本', () => {
+  const ci = read('.github/workflows/ci.yml');
+  assert.doesNotMatch(ci, /actions\/checkout@v[1-4]\b/, '仍用 node20 runtime 的 checkout');
+  assert.doesNotMatch(ci, /actions\/setup-node@v[1-4]\b/, '仍用 node20 runtime 的 setup-node');
+  assert.match(ci, /actions\/checkout@v[5-9]/, 'checkout 未升到 node24 runtime 的主版本');
+  assert.match(ci, /actions\/setup-node@v[5-9]/, 'setup-node 未升到 node24 runtime 的主版本');
+});
+
+test('#29 CI 里有独立的多架构容器构建 job', () => {
+  const ci = read('.github/workflows/ci.yml');
+  assert.match(ci, /docker\/setup-qemu-action@v4/, '缺 QEMU（arm64 模拟运行）');
+  assert.match(ci, /docker\/setup-buildx-action@v4/, '缺 buildx');
+  assert.match(ci, /docker\/build-push-action@v[6-9]/, '缺 build-push-action');
+  assert.match(ci, /platforms:\s*linux\/amd64,\s*linux\/arm64/, '没有同时构建 amd64 与 arm64');
+  assert.doesNotMatch(ci, /push:\s*true/, 'CI 不得推送镜像到 registry');
+});
+
+test('#29 容器构建 job 里必须真的跑一次容器并回读 /health', () => {
+  const ci = read('.github/workflows/ci.yml');
+  assert.match(ci, /docker run/, '没有真正跑起容器');
+  assert.match(ci, /\/health/, '没有回读 /health');
+  assert.match(ci, /db.*ok|"db":"ok"/, '没有断言健康响应里的 db=ok');
+});
+
+test('#29 Dockerfile 以非 root 用户跑 node:26-slim，并暴露 8080', () => {
+  const dockerfile = read('Dockerfile');
+  assert.match(dockerfile, /FROM node:26-slim/, '基础镜像不是 node:26-slim');
+  assert.match(dockerfile, /^USER node$/m, '容器没有切到非 root 用户');
+  assert.match(dockerfile, /EXPOSE 8080/, '没有暴露 8080');
+  assert.match(dockerfile, /npm ci --omit=dev/, '生产镜像没有只装运行期依赖');
+});
