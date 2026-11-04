@@ -22,33 +22,49 @@ export function runDaily(db, { date = today(), at = nowIso() } = {}) {
   return { date, due: rows.length, inserted };
 }
 
-export function startScheduler(db, { now = new Date() } = {}) {
-  const state = { running: true, lastRunAt: null, lastResult: null };
+// 定时器接口可以注入，测试才能用假时钟控制「什么时候触发、延迟多少」，
+// 不必真的等到 00:05（生产环境走默认的全局 setTimeout/clearTimeout）。
+export function startScheduler(db, {
+  now = new Date(),
+  setTimer = setTimeout,
+  clearTimer = clearTimeout,
+} = {}) {
+  const state = { running: true, lastRunAt: null, lastResult: null, lastError: null };
+
+  // 一次失败不该掐断每日链：记下错误，下一棒照排。
+  // 与 AI worker 的 state.lastError 同一套范式，/api/health 会把 scheduler 整份透出。
   const tick = () => {
-    state.lastResult = runDaily(db);
-    state.lastRunAt = nowIso();
+    try {
+      state.lastResult = runDaily(db);
+      state.lastRunAt = nowIso();
+      state.lastError = null;
+    } catch (error) {
+      state.lastError = error?.message ?? String(error);
+    }
   };
 
   tick(); // 启动补算一次，容器重启不漏
 
-  let timer;
-  const schedule = () => {
-    timer = setTimeout(() => {
+  let timer = null;
+  const schedule = (delay) => {
+    timer = setTimer(() => {
+      if (!state.running) return; // stop() 之后不再自动跑
       tick();
-      schedule();
-    }, nextRunDelay());
+      if (!state.running) return; // tick 期间被 stop() 了，不再排下一棒
+      schedule(nextRunDelay());
+    }, delay);
   };
-  timer = setTimeout(() => {
-    tick();
-    schedule();
-  }, nextRunDelay(now));
+  schedule(nextRunDelay(now));
 
   return {
     state,
     runNow: tick,
     stop() {
-      clearTimeout(timer);
       state.running = false;
+      if (timer !== null) {
+        clearTimer(timer);
+        timer = null;
+      }
     },
   };
 }
