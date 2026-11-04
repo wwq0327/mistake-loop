@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>录入错题 · mistake-loop</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body data-page="capture">
+  <header class="topbar no-print">
+    <span class="brand">mistake-loop</span>
+    <nav>
+      <a href="/index.html">今日复习</a>
+      <a href="/capture.html" class="active">录入</a>
+      <a href="/print.html">打印</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero no-print">
+      <h1>录入一题</h1>
+      <p>提交后保留科目与教材定位，可以连着录下一题。本批已录 <strong id="batch-count">0</strong> 题。</p>
+    </section>
+
+    <form id="capture-form" class="form no-print">
+      <label>科目
+        <select id="f-subject">
+          <option value="math">数学</option>
+          <option value="chinese">语文</option>
+          <option value="english">英语</option>
+        </select>
+      </label>
+
+      <label>教材单元
+        <select id="f-node"><option value="">暂不指定</option></select>
+      </label>
+
+      <div class="row">
+        <label>课题 <input id="f-lesson" type="text" placeholder="如：大数的认识"></label>
+        <label>页码 <input id="f-page" type="text" placeholder="如：p12"></label>
+      </div>
+
+      <label>题干 <span class="required">必填</span>
+        <textarea id="f-prompt" rows="4" required placeholder="把题目原样写下来"></textarea>
+      </label>
+
+      <div class="row">
+        <label>学生答案 <textarea id="f-student-answer" rows="3"></textarea></label>
+        <label>正确答案（仅教师可见） <textarea id="f-correct-answer" rows="3"></textarea></label>
+      </div>
+
+      <label>拍照（可选，手机会调起系统相机）
+        <input id="f-image" type="file" accept="image/*" capture="environment">
+      </label>
+
+      <h2>支架式诊断</h2>
+      <p class="hint">一次只问学生一个点；关键结论必须由学生自己说出来，此处只做记录。</p>
+
+      <div class="row">
+        <label>错因分类
+          <select id="f-category">
+            <option value="">暂不分类</option>
+            <option value="conceptual">概念性（没理解）</option>
+            <option value="procedural">程序性（步骤错）</option>
+            <option value="metacognitive">元认知（没策略）</option>
+            <option value="factual">事实性（没记住）</option>
+          </select>
+        </label>
+        <label>子类型 <input id="f-subtype" type="text" list="subtype-options" placeholder="可从下拉选"></label>
+      </div>
+      <datalist id="subtype-options"></datalist>
+
+      <label>定位问题（只问一个点）
+        <input id="f-diagnosis" type="text" placeholder="如：先把已知条件一条条列出来">
+      </label>
+
+      <label>学生自己说出的关键结论
+        <textarea id="f-conclusion" rows="2" placeholder="填了这句，才允许推进到纠错中"></textarea>
+      </label>
+
+      <h2>三层变式（可选）</h2>
+      <p class="hint">提交后仍需到「今日复习」页逐条审核，未审核不上打印纸。</p>
+      <div class="row">
+        <label>换数字（表面） <textarea data-level="surface" rows="2"></textarea></label>
+        <label>换角度（结构） <textarea data-level="structure" rows="2"></textarea></label>
+        <label>换场景（情境） <textarea data-level="context" rows="2"></textarea></label>
+      </div>
+
+      <div class="actions">
+        <button type="submit" class="btn">保存这一题</button>
+        <button type="button" id="f-advance" class="btn btn-alt">保存并进入纠错中</button>
+      </div>
+    </form>
+  </main>
+
+  <div id="toast" class="toast no-print" aria-live="polite"></div>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

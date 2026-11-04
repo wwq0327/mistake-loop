@@ -1,0 +1,24 @@
+@page { size: A4; margin: 15mm; }
+
+@media print {
+  .no-print, .topbar, .toast, button { display: none !important; }
+  body { background: #fff; color: #000; font-size: 12pt; }
+  main { max-width: none; padding: 0; }
+
+  .print-card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    border: 1px solid #333;
+    border-radius: 0;
+    padding: 8mm;
+    margin: 0 0 8mm;
+    background: #fff;
+  }
+  .print-head { font-weight: 700; border-bottom: 1px solid #666; padding-bottom: 3mm; }
+  .print-prompt { white-space: pre-wrap; }
+  .print-image { max-width: 100%; max-height: 60mm; }
+  .variant-list li { margin-bottom: 4mm; }
+  .variant-list p { margin: 1mm 0; }
+  .answer-line { border-bottom: 1px solid #888; height: 11mm; }
+  .print-card:last-child { margin-bottom: 0; }
+}

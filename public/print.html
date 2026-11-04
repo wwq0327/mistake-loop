@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>打印导出 · mistake-loop</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/print.css" media="print">
+</head>
+<body data-page="print">
+  <header class="topbar no-print">
+    <span class="brand">mistake-loop</span>
+    <nav>
+      <a href="/index.html">今日复习</a>
+      <a href="/capture.html">录入</a>
+      <a href="/print.html" class="active">打印</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="no-print">
+      <div class="hero">
+        <h1>导出 A4 练习纸</h1>
+        <p>学生版不含答案、不含引导提示。一题一张卡片，不跨页断题。</p>
+      </div>
+      <div class="actions">
+        <button id="select-all" class="btn btn-alt" type="button">全选</button>
+        <button id="build" class="btn" type="button">生成打印页</button>
+        <button id="do-print" class="btn btn-alt" type="button">打印</button>
+      </div>
+      <p class="hint">已选 <strong id="selected-count">0</strong> 题。</p>
+      <div id="choose-list"></div>
+    </section>
+
+    <section id="print-area" aria-label="A4 打印内容"></section>
+  </main>
+
+  <div id="toast" class="toast no-print" aria-live="polite"></div>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

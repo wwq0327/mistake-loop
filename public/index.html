@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>今日复习 · mistake-loop</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body data-page="today">
+  <header class="topbar no-print">
+    <span class="brand">mistake-loop</span>
+    <nav>
+      <a href="/index.html" class="active">今日复习</a>
+      <a href="/capture.html">录入</a>
+      <a href="/print.html">打印</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero no-print">
+      <h1>今天该练的题</h1>
+      <p id="date-label"></p>
+    </section>
+
+    <section id="stats" class="stats no-print"></section>
+
+    <section class="no-print">
+      <h2>待审核变式 <span id="pending-count" class="badge">0</span></h2>
+      <p class="hint">AI 或机器给出的变式，必须老师点过审核才生效、才上打印纸。</p>
+      <div id="pending-list"></div>
+    </section>
+
+    <section>
+      <h2>今日复习 <span id="today-count" class="badge">0</span></h2>
+      <div id="today-list"></div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast no-print" aria-live="polite"></div>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
