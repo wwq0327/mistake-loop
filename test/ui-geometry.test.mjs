@@ -4,7 +4,7 @@
 // 背景：老师录了长方形图、录了 geometry_spec、打印出来给学生做——
 // 纸上只有题干和答题线，图没了。学生拿到的是一道没有图的题。
 //
-// 本文件自带一个最小 DOM 垫片：只够跑 questionCard，不引 jsdom（零依赖原则），
+// 垫片放在 test/helpers/dom.mjs（与 #48 共用）：不引 jsdom（零依赖原则），
 // 也不模拟浏览器渲染，只模拟「节点能不能被造出来、挂上去、走对顺序」。
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -15,105 +15,10 @@ import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 const uiSource = readFileSync(join(here, '..', 'public', 'js', 'ui.js'), 'utf8');
 
-const SVG_NS = 'http://www.w3.org/2000/svg';
-const XLINK = 'http://www.w3.org/1999/xhtml';
+import { installDom, SVG_NS } from './helpers/dom.mjs';
 
-class ShimNode {
-  constructor(tag, namespaceURI = XLINK) {
-    this.tagName = tag;
-    this.localName = tag;
-    this.namespaceURI = namespaceURI;
-    this.children = [];
-    this.attributes = {};
-    this.className = '';
-    this.textContent = '';
-    this.dataset = {};
-    this.style = { setProperty() {} };
-  }
-
-  append(...nodes) { this.children.push(...nodes); }
-
-  replaceChildren(...nodes) { this.children = [...nodes]; }
-
-  setAttribute(name, value) { this.attributes[name] = String(value); }
-
-  getAttribute(name) {
-    return Object.prototype.hasOwnProperty.call(this.attributes, name) ? this.attributes[name] : null;
-  }
-
-  addEventListener() {}
-
-  querySelectorAll() { return []; }
-
-  descendants() {
-    const out = [];
-    const walk = (node) => {
-      for (const child of node.children) {
-        if (child instanceof ShimNode) { out.push(child); walk(child); }
-      }
-    };
-    walk(this);
-    return out;
-  }
-}
-
-// 垫片里的 XML 解析：够用且够严。
-// 够严是指跟真浏览器对齐——标签没闭合、根元素不是一个，浏览器会给 parsererror，
-// 这里也必须给 parsererror，否则「非法 SVG 不出坏节点」这条断言就自欺欺人。
-function parseSvgText(text) {
-  const container = new ShimNode('#container', SVG_NS);
-  const stack = [container];
-  const re = /<\s*(\/?)\s*([a-zA-Z][\w:.-]*)((?:\s+[\w:.-]+\s*=\s*"[^"]*")*)\s*(\/?)>|([^<]+)/g;
-  let match = re.exec(text);
-  while (match !== null) {
-    if (match[5] !== undefined) {
-      if (match[5].trim()) stack[stack.length - 1].children.push({ text: match[5] });
-    } else if (match[1] === '/') {
-      if (stack.length === 1) return null; // 多余的闭合标签
-      stack.pop();
-    } else {
-      const node = new ShimNode(match[2], SVG_NS);
-      for (const attr of (match[3] || '').matchAll(/([\w:.-]+)\s*=\s*"([^"]*)"/g)) {
-        node.setAttribute(attr[1], attr[2]);
-      }
-      stack[stack.length - 1].children.push(node);
-      if (match[4] !== '/') stack.push(node);
-    }
-    match = re.exec(text);
-  }
-  if (stack.length !== 1) return null; // 有标签没闭合
-  const roots = container.children.filter((child) => child instanceof ShimNode);
-  if (roots.length !== 1) return null; // 根元素不是一个
-  return roots[0];
-}
-
-class ShimDOMParser {
-  parseFromString(text, mimeType) {
-    if (mimeType !== 'image/svg+xml') return { documentElement: new ShimNode('parsererror') };
-    const root = parseSvgText(String(text));
-    return { documentElement: root || new ShimNode('parsererror') };
-  }
-}
-
-function cloneNode(node) {
-  const copy = new ShimNode(node.localName, node.namespaceURI);
-  copy.className = node.className;
-  copy.textContent = node.textContent;
-  for (const [key, value] of Object.entries(node.attributes)) copy.setAttribute(key, value);
-  for (const child of node.children) {
-    copy.children.push(child instanceof ShimNode ? cloneNode(child) : { ...child });
-  }
-  return copy;
-}
-
-globalThis.document = {
-  createElement: (tag) => new ShimNode(tag),
-  createElementNS: (ns, tag) => new ShimNode(tag, ns),
-  importNode: (node) => cloneNode(node),
-  getElementById: () => null,
-  body: new ShimNode('body'),
-};
-globalThis.DOMParser = ShimDOMParser;
+// 垫片装到 globalThis，页面代码里的 document / DOMParser 才有东西可用。
+installDom();
 
 const { questionCard } = await import('../public/js/ui.js');
 

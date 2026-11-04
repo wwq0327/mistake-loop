@@ -261,6 +261,18 @@ export async function mount({ root, api, state }) {
     }
   }
 
+  // 人工重试：把失败任务排回队列，重新走一遍识别。
+  // 识别结果仍然只进草稿，老师照样要逐题确认——重试不等于自动入库。
+  async function retryJob(job) {
+    try {
+      await api(`/api/recognitions/${job.id}/retry`, { method: 'POST' });
+      notify(`照片 #${job.id} 已重新排队，识别出来后照样要你逐题确认。`);
+      await refresh();
+    } catch (error) {
+      notify(`没能重试：${error.message}`, 'error');
+    }
+  }
+
   async function cropAndRetry(draft) {
     if (!Array.isArray(draft.bbox) || !image.naturalWidth) {
       notify('这道题没有可用的识别框，请改用手工录入。', 'warn');
@@ -478,7 +490,11 @@ export async function mount({ root, api, state }) {
     }
     renderJob(job);
     if (job.status === 'failed') {
-      root.replaceChildren(alert(`识别失败（${job.error_code || '未知原因'}）。原图仍在这里，改为手工录入即可。`, 'warn'));
+      // 失败不是死路：重试与手工录入是两条并行的路（AI 规格 failed → queued，人工重试）。
+      const box = el('div', 'stack');
+      box.append(alert(`识别失败（${job.error_code || '未知原因'}）。原图仍在这里：可以重试识别，也可以改为手工录入。`, 'warn'));
+      box.append(button('重试识别', { variant: 'primary', onClick: () => retryJob(job) }));
+      root.replaceChildren(box);
     }
   }
 
