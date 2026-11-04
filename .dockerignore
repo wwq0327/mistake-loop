@@ -1,0 +1,11 @@
+node_modules/
+data/
+.git/
+.gitignore
+docs/
+.workbuddy/
+.DS_Store
+*.log
+*.db
+*.db-wal
+*.db-shm

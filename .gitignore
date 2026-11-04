@@ -1,0 +1,7 @@
+node_modules/
+data/
+.workbuddy/
+.DS_Store
+*.log
+*.db-wal
+*.db-shm

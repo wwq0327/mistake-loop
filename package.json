@@ -1,0 +1,22 @@
+{
+  "name": "mistake-loop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "小学语数外错题闭环：常驻服务每日自动推进复习，学生端全纸质",
+  "type": "module",
+  "main": "src/server.mjs",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "dev": "node src/server.mjs",
+    "start": "node src/server.mjs",
+    "test": "node --test test/*.test.mjs",
+    "check": "for f in $(find src scripts test -name '*.mjs'); do node --check \"$f\" || exit 1; done",
+    "import:legacy": "node scripts/import-legacy.mjs",
+    "backup": "node scripts/backup.mjs"
+  },
+  "dependencies": {
+    "express": "^5.1.0"
+  }
+}
