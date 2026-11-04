@@ -1,6 +1,9 @@
 // 三科错因与变式规则分列，不把数学的题型结构套到语文、英语上。
 export const UNCLASSIFIED = '待归类';
 
+// 教材版本定死（四上）。册次允许多册共存，旧 19 题是三下。
+export const EDITIONS = { math: '人教版', chinese: '统编版', english: '人教版PEP' };
+
 // 数学子类型来自 mistake-wiki/wiki/error-types.md 已验证条目；
 // 语文只收旧库 3 道错题里实际出现过的；英语第一版留空，等真实错题积累后再补。
 export const ERROR_SUBTYPES = {

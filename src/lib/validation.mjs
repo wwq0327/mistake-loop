@@ -9,8 +9,25 @@ export class ValidationError extends Error {
   }
 }
 
+export class HttpError extends Error {
+  constructor(status, code, message) {
+    super(message);
+    this.name = 'HttpError';
+    this.status = status;
+    this.code = code;
+  }
+}
+
 export function assert(condition, message, code) {
   if (!condition) throw new ValidationError(message, code);
+}
+
+export function notFound(message) {
+  throw new HttpError(404, 'NOT_FOUND', message);
+}
+
+export function conflict(message) {
+  throw new HttpError(409, 'INVALID_STATE', message);
 }
 
 function oneOf(value, allowed, label) {
