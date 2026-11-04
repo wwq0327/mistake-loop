@@ -92,3 +92,28 @@ test('仍无框架、无构建链、无新增运行时依赖', () => {
   assert.equal(read('vite.config.js'), null);
   assert.equal(read('webpack.config.js'), null);
 });
+
+// #21：工作台四个实时数字与复习动作。
+test('工作台含四个 KPI 容器，每个都能点到对应动作', () => {
+  const page = read('public/index.html');
+  assert.ok(page, 'index.html 不存在');
+  const kpis = [...page.matchAll(/data-kpi="([A-Za-z]+)"/g)].map((m) => m[1]);
+  assert.deepEqual(kpis, ['pendingDrafts', 'today', 'overdue', 'awaitingTextbookRef']);
+  for (const href of ['/inbox', '/print', '/library']) {
+    assert.ok(page.includes(`data-kpi-href="${href}"`), `缺跳转 ${href}`);
+  }
+  assert.match(page, /id="workbench-today"/, '缺今日复习列表容器');
+});
+
+test('工作台数字全部来自实时接口，复习动作含做对/做错与掌握证据入口', () => {
+  const source = read('public/js/pages/workbench.js');
+  assert.ok(source, 'workbench.js 不存在');
+  assert.match(source, /\/api\/meta/, '未读实时统计');
+  assert.match(source, /\/api\/reviews\/today/, '未读今日复习');
+  assert.match(source, /\/api\/ai\/status|\/api\/recognitions/, '未读待确认草稿');
+  assert.match(source, /\/api\/reviews\//, '缺复习结果接口');
+  assert.match(source, /correct/, '缺做对动作');
+  assert.match(source, /wrong/, '缺做错动作');
+  assert.match(source, /evidence_type/, '缺掌握证据入口');
+  assert.match(source, /next_review|overdue_days/, '未按到期日排序展示');
+});

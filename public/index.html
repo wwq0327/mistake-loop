@@ -35,6 +35,31 @@
           <label for="page-q">在本页查找</label>
           <input id="page-q" class="input" type="search" placeholder="输入关键词，过滤本页内容">
         </div>
+
+        <div class="grid grid--stats" id="workbench-kpis">
+          <a class="card" data-kpi="pendingDrafts" data-kpi-href="/inbox" href="/inbox">
+            <div class="card__body"><div class="stat" id="kpi-pendingDrafts">—</div><div class="stat-label">待确认识别草稿</div></div>
+          </a>
+          <a class="card" data-kpi="today" data-kpi-href="/print" href="/print">
+            <div class="card__body"><div class="stat" id="kpi-today">—</div><div class="stat-label">今日该复习</div></div>
+          </a>
+          <a class="card" data-kpi="overdue" data-kpi-href="/print" href="/print">
+            <div class="card__body"><div class="stat" id="kpi-overdue">—</div><div class="stat-label">逾期未练</div></div>
+          </a>
+          <a class="card" data-kpi="awaitingTextbookRef" data-kpi-href="/library" href="/library">
+            <div class="card__body"><div class="stat" id="kpi-awaitingTextbookRef">—</div><div class="stat-label">待补教材定位</div></div>
+          </a>
+        </div>
+
+        <div id="workbench-actions" class="row"></div>
+        <section id="workbench-today" class="card">
+          <div class="card__head"><h2>今日复习</h2><span class="small muted">按到期日排序</span></div>
+          <div class="card__body"></div>
+        </section>
+        <section id="workbench-pending" class="card">
+          <div class="card__head"><h2>待审核变式</h2></div>
+          <div class="card__body"></div>
+        </section>
         <div id="view" class="stack" aria-live="polite"></div>
       </div>
     </main>
