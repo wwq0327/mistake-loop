@@ -4,8 +4,8 @@
 // 任一 B 项不达标即退出 1；B11 的审美部分只标注「待用户判断」，不算通过也不算失败。
 import { spawnSync } from 'node:child_process';
 import {
-  mkdtempSync, mkdirSync, copyFileSync, cpSync, existsSync, readdirSync,
-  rmSync, writeFileSync, readFileSync, statSync,
+  mkdtempSync, mkdirSync, copyFileSync, cpSync, existsSync,
+  rmSync, writeFileSync, readFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
@@ -17,6 +17,8 @@ import { checkUi } from './check-ui.mjs';
 import { checkVisual } from './check-visual.mjs';
 import { parseTestSummary } from './parse-test-summary.mjs';
 import { backup, restore } from './backup.mjs';
+import { indexImages } from '../src/lib/image-index.mjs';
+import { evaluateB10 } from './acceptance-checks.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..');
@@ -66,17 +68,6 @@ function realCopy() {
   const images = join(root, 'data', 'images');
   if (existsSync(images)) cpSync(images, join(dir, 'images'), { recursive: true });
   return dir;
-}
-
-function countFiles(dir) {
-  if (!existsSync(dir)) return 0;
-  let total = 0;
-  for (const entry of readdirSync(dir)) {
-    const path = join(dir, entry);
-    if (statSync(path).isDirectory()) total += countFiles(path);
-    else total += 1;
-  }
-  return total;
 }
 
 async function request(base, path, { method = 'GET', body } = {}) {
@@ -141,13 +132,13 @@ async function main() {
     const db = openDb(join(dir, 'mistakes.db'));
     const count = (table) => db.prepare(`SELECT COUNT(*) c FROM ${table}`).get().c;
     const counts = { mistakes: count('mistakes'), variants: count('variants'), textbook_nodes: count('textbook_nodes') };
+    const images = indexImages({ dataDir: dir, db }).counts;
     closeDb(db);
-    const images = countFiles(join(dir, 'images'));
     rmSync(dir, { recursive: true, force: true });
     const ok = v1.status === 0 && v1.tests === 28 && v1.pass === 28 && v1.fail === 0
       && check.status === 0 && drill.ok;
     record('B1', '回归', ok,
-      `v1 五个文件 ${v1.tests} 例 / pass ${v1.pass} / fail ${v1.fail}（含 I5-I6 导入幂等：第二次新增 0）；npm run check 退出码 ${check.status}；真实库副本备份恢复演练 ok=${drill.ok}、计数 ${JSON.stringify(snapshot.manifest.database)}、图片 ${snapshot.manifest.images} 张；副本 ${counts.mistakes} 题 / ${counts.variants} 变式 / ${counts.textbook_nodes} 节点 / ${images} 图；旧库只读未被写入`);
+      `v1 五个文件 ${v1.tests} 例 / pass ${v1.pass} / fail ${v1.fail}（含 I5-I6 导入幂等：第二次新增 0）；npm run check 退出码 ${check.status}；真实库一致性快照备份恢复演练 ok=${drill.ok}、计数 ${JSON.stringify(snapshot.manifest.database)}、有效图片 ${snapshot.manifest.images} 张；副本 ${counts.mistakes} 题 / ${counts.variants} 变式 / ${counts.textbook_nodes} 节点 / 旧库原图 ${images.legacy} 张（磁盘文件 ${images.total} 张，孤儿 ${images.orphan} 张）；旧库只读未被写入`);
   }
 
   // B2：U1-U8 静态规范与四组设计系统测试。
@@ -275,7 +266,7 @@ async function main() {
       `六组共 ${groups.length} 个文件：${result.tests} 例 / pass ${result.pass} / fail ${result.fail}；覆盖清洗器、provider mock、worker 配额、识别 HTTP 全流程、审核闸门、教学法红线`);
   }
 
-  // B10：旧库只读状态与 v1 数据一条不丢。
+  // B10：旧库只读状态与 v1 数据一条不丢。图片按层比对，不拿跨口径的数字互相比。
   {
     const status = git(['status', '--porcelain'], LEGACY);
     const lines = status.stdout.trim().split('\n').filter(Boolean).length;
@@ -285,12 +276,11 @@ async function main() {
     const counts = {
       mistakes: count('mistakes'), variants: count('variants'), textbook_nodes: count('textbook_nodes'),
     };
+    const imageCounts = indexImages({ dataDir: dir, db }).counts;
     closeDb(db);
-    const images = countFiles(join(dir, 'images'));
     rmSync(dir, { recursive: true, force: true });
-    record('B10', '旧库与数据', lines === 28 && counts.mistakes === 19 && counts.variants === 6
-      && counts.textbook_nodes === 25 && images === 19,
-      `旧库 ${LEGACY} 的 git status 仍 ${lines} 项（全程只读）；v1 数据回读 ${counts.mistakes} 题 / ${counts.variants} 变式 / ${images} 张图 / ${counts.textbook_nodes} 个教材节点，一条不丢；真实库只在临时副本上打开`);
+    const out = evaluateB10({ legacyStatusLines: lines, dbCounts: counts, imageCounts });
+    record('B10', '旧库与数据', out.ok, out.evidence);
   }
 
   // B11：拆两半——能机器判的判掉，审美仍由使用者判断，不由开发自评。
