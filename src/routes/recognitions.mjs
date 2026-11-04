@@ -2,6 +2,9 @@
 // 红线：AI 结果只落在 recognition_drafts，只有 #15 的 commit 接口能写 mistakes。
 import { Router } from 'express';
 import { saveRecognitionPair } from '../lib/images.mjs';
+import { withTransaction } from '../db.mjs';
+import { EDITIONS } from '../lib/subjects.mjs';
+import { SUBJECTS } from '../state-machine.mjs';
 import { checkId, checkText, checkSubject, notFound, conflict, ValidationError } from '../lib/validation.mjs';
 import { nowIso } from '../lib/dates.mjs';
 
@@ -63,6 +66,58 @@ function publicDraft(row) {
 function withDrafts(db, jobRows) {
   const stmt = db.prepare('SELECT * FROM recognition_drafts WHERE job_id = ? ORDER BY seq');
   return jobRows.map((job) => ({ ...publicJob(job), drafts: stmt.all(job.id).map(publicDraft) }));
+}
+
+// 唯一允许 AI 草稿变成错题的地方：老师点确认才调用。
+// 事务内插 mistakes(status='new') 并回写 draft.mistake_id；重复确认幂等。
+// 教学法红线：correct_answer / student_conclusion 永不来自草稿，掌握证据与复习事件一概不写。
+function commitDraft(db, id, overrides = {}) {
+  const draft = db.prepare('SELECT * FROM recognition_drafts WHERE id = ?').get(id);
+  if (!draft) notFound('草稿不存在');
+  if (draft.status === 'committed' && draft.mistake_id) {
+    const existing = db.prepare('SELECT id FROM mistakes WHERE id = ?').get(draft.mistake_id);
+    if (existing) return { idempotent: true, mistakeId: existing.id, status: 200 };
+  }
+  if (draft.status !== 'pending') conflict('该草稿已处理，不能重复入库');
+
+  const subject = overrides.subject ?? draft.subject;
+  if (!SUBJECTS.includes(subject)) {
+    throw new ValidationError('请先选定科目再确认入库', 'SUBJECT_REQUIRED');
+  }
+  const prompt = String(overrides.prompt ?? draft.prompt ?? '').trim();
+  if (!prompt) {
+    throw new ValidationError('题干为空，AI 没把握的字段请手填后再确认', 'PROMPT_REQUIRED');
+  }
+  if (prompt.length > 2000) throw new ValidationError('题干超过 2000 字', 'TOO_LONG');
+
+  const job = db.prepare('SELECT image_path FROM recognition_jobs WHERE id = ?').get(draft.job_id);
+  const student = db.prepare('SELECT id FROM students ORDER BY id LIMIT 1').get();
+  const now = nowIso();
+  const mistakeId = withTransaction(db, () => {
+    const info = db.prepare(`
+      INSERT INTO mistakes (
+        student_id, subject, edition, grade, semester, question_type, prompt,
+        student_answer, image_path, recognition_draft_id, status, review_round,
+        needs_textbook_ref, created_at, updated_at
+      ) VALUES (?, ?, ?, 4, 1, ?, ?, ?, ?, ?, 'new', 0, 1, ?, ?)
+    `).run(
+      student?.id ?? null,
+      subject,
+      EDITIONS[subject],
+      draft.question_type,
+      prompt,
+      draft.student_answer_draft || null,
+      job?.image_path ?? null,
+      id,
+      now,
+      now,
+    );
+    const newId = Number(info.lastInsertRowid);
+    db.prepare("UPDATE recognition_drafts SET status = 'committed', mistake_id = ?, reviewed_at = ? WHERE id = ? AND status = 'pending'")
+      .run(newId, now, id);
+    return newId;
+  });
+  return { idempotent: false, mistakeId, status: 201 };
 }
 
 export function createRecognitionsRouter({ db, dataDir, worker = null }) {
@@ -147,6 +202,30 @@ export function createRecognitionsRouter({ db, dataDir, worker = null }) {
     if (row.status !== 'pending') conflict('只对待确认草稿可丢弃');
     db.prepare("UPDATE recognition_drafts SET status = 'discarded', reviewed_at = ? WHERE id = ?").run(nowIso(), id);
     res.json({ id, status: 'discarded' });
+  });
+
+  // 批量确认：每条独立事务，一条失败不影响其余；重复项返回幂等结果。
+  router.post('/recognition-drafts/batch-commit', (req, res) => {
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids : [];
+    if (ids.length > 50) throw new ValidationError('一次最多确认 50 条草稿', 'TOO_MANY');
+    const results = ids.map((raw) => {
+      try {
+        const result = commitDraft(db, checkId(raw));
+        return { id: raw, ok: true, mistakeId: result.mistakeId, idempotent: result.idempotent };
+      } catch (error) {
+        return { id: raw, ok: false, reason: error.code || 'FAILED' };
+      }
+    });
+    res.json({ committed: results.filter((r) => r.ok && !r.idempotent).length, results });
+  });
+
+  router.post('/recognition-drafts/:id/commit', (req, res) => {
+    const result = commitDraft(db, checkId(req.params.id), req.body ?? {});
+    res.status(result.status).json({
+      mistakeId: result.mistakeId,
+      idempotent: result.idempotent,
+      status: 'new',
+    });
   });
 
   return router;

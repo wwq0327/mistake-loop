@@ -140,3 +140,83 @@ describe('识别收件箱：上传 → 草稿 → 核对', () => {
     assert.equal(again.status, 409, '非 failed 状态不该允许重试');
   });
 });
+
+// #15：逐题确认闸门。红灯预期 commit 接口尚不存在（404）。
+describe('逐题确认闸门：草稿不自动入库，确认幂等', () => {
+  let commitJobId;
+  let draftIds;
+  let emptyDraftId;
+
+  before(() => {
+    const now = new Date().toISOString();
+    const info = db.prepare("INSERT INTO recognition_jobs (image_path, status, created_at) VALUES ('images/commit-fixture.jpg', 'done', ?)").run(now);
+    commitJobId = Number(info.lastInsertRowid);
+    draftIds = [];
+    for (let i = 1; i <= 3; i += 1) {
+      const r = db.prepare("INSERT INTO recognition_drafts (job_id, seq, subject, prompt, status, created_at) VALUES (?, ?, 'math', ?, 'pending', ?)")
+        .run(commitJobId, i, `闸门题 ${i}`, now);
+      draftIds.push(Number(r.lastInsertRowid));
+    }
+    const empty = db.prepare("INSERT INTO recognition_drafts (job_id, seq, subject, prompt, status, created_at) VALUES (?, 4, 'math', '', 'pending', ?)")
+      .run(commitJobId, now);
+    emptyDraftId = Number(empty.lastInsertRowid);
+  });
+
+  it('未确认草稿不出现在题库 / 今日复习 / 打印 / 统计', async () => {
+    const mistakes = await call('/api/mistakes');
+    const today = await call('/api/reviews/today');
+    const print = await call('/api/print');
+    const meta = await call('/api/meta');
+    assert.equal(mistakes.data.total, 0);
+    assert.equal(today.data.total, 0);
+    assert.equal(print.data.total, 0);
+    assert.equal(meta.data.stats.total, 0);
+    assert.equal(db.prepare('SELECT COUNT(*) c FROM recognition_drafts WHERE job_id = ? AND status = ?').get(commitJobId, 'pending').c, 4);
+  });
+
+  it('确认两条只新增两道错题，status=new，答案与学生结论均不来自 AI', async () => {
+    const first = await call(`/api/recognition-drafts/${draftIds[0]}/commit`, { method: 'POST' });
+    const second = await call(`/api/recognition-drafts/${draftIds[1]}/commit`, { method: 'POST' });
+    assert.equal(first.status, 201, first.text);
+    assert.equal(second.status, 201, second.text);
+    assert.ok(first.data.mistakeId > 0);
+
+    const rows = db.prepare('SELECT * FROM mistakes ORDER BY id').all();
+    assert.equal(rows.length, 2);
+    assert.deepEqual(rows.map((r) => r.status), ['new', 'new']);
+    assert.equal(rows[0].review_round, 0);
+    assert.equal(rows[0].correct_answer, null, 'AI 答案混入了 correct_answer');
+    assert.equal(rows[0].student_conclusion, null, 'AI 替学生写了关键结论');
+    assert.equal(rows[0].recognition_draft_id, draftIds[0]);
+    assert.equal(rows[0].image_path, 'images/commit-fixture.jpg');
+    assert.equal(rows[0].needs_textbook_ref, 1);
+    assert.equal(db.prepare('SELECT status, mistake_id FROM recognition_drafts WHERE id = ?').get(draftIds[0]).status, 'committed');
+    assert.ok(db.prepare('SELECT mistake_id FROM recognition_drafts WHERE id = ?').get(draftIds[0]).mistake_id > 0);
+  });
+
+  it('二次 commit 返回幂等结果，不重复入库', async () => {
+    const again = await call(`/api/recognition-drafts/${draftIds[0]}/commit`, { method: 'POST' });
+    assert.equal(again.status, 200);
+    assert.equal(again.data.idempotent, true);
+    assert.equal(db.prepare('SELECT COUNT(*) c FROM mistakes').get().c, 2);
+  });
+
+  it('低置信度留空的题干不许确认入库', async () => {
+    const res = await call(`/api/recognition-drafts/${emptyDraftId}/commit`, { method: 'POST' });
+    assert.equal(res.status, 400);
+    assert.equal(db.prepare('SELECT COUNT(*) c FROM mistakes').get().c, 2);
+    assert.equal(db.prepare('SELECT status FROM recognition_drafts WHERE id = ?').get(emptyDraftId).status, 'pending');
+  });
+
+  it('批量确认逐条事务：可确认的入库，其余给原因且互不影响', async () => {
+    db.prepare("UPDATE recognition_drafts SET status = 'discarded' WHERE id = ?").run(draftIds[2]);
+    const res = await call('/api/recognition-drafts/batch-commit', {
+      method: 'POST',
+      body: { ids: [draftIds[0], draftIds[2], emptyDraftId, ...draftIds.slice(0, 1)] },
+    });
+    assert.equal(res.status, 200);
+    assert.equal(db.prepare('SELECT COUNT(*) c FROM mistakes').get().c, 2, '批量里重复/无效项不该新增错题');
+    assert.ok(res.data.results.length === 4);
+    assert.ok(res.data.results.some((r) => r.reason));
+  });
+});
