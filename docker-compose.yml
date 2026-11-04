@@ -1,0 +1,18 @@
+services:
+  mistake-loop:
+    build: .
+    image: mistake-loop:local
+    container_name: mistake-loop
+    restart: unless-stopped
+    # 只绑局域网 8080。路由器不做公网端口映射，校外访问走 Tailscale。
+    ports:
+      - "8080:8080"
+    environment:
+      TZ: Asia/Shanghai
+      DATA_DIR: /data
+      PORT: 8080
+      # 第一版不接真实密钥；这里只做透传，不建 .env、不进仓库。
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_BASE_URL: ${AI_BASE_URL:-}
+    volumes:
+      - ./data:/data

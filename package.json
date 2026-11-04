@@ -12,7 +12,7 @@
     "dev": "node src/server.mjs",
     "start": "node src/server.mjs",
     "test": "node --test test/*.test.mjs",
-    "check": "for f in $(find src scripts test -name '*.mjs'); do node --check \"$f\" || exit 1; done",
+    "check": "for f in $(find src scripts test -name '*.mjs'); do node --check \"$f\" || exit 1; done && node --check public/app.js",
     "import:legacy": "node scripts/import-legacy.mjs",
     "backup": "node scripts/backup.mjs"
   },
