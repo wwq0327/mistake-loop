@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { EXPECTED_COUNT } from '../scripts/check-issue-map.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..');
@@ -123,8 +124,16 @@ test('#28 改版不靠改六页 HTML 结构，也不引外部字体与构建链'
   assert.equal(pkg.scripts.build, undefined, '出现构建链');
 });
 
-test('#28 Issue 映射同步到 28，守护脚本与测试一致', () => {
-  assert.match(read('scripts/check-issue-map.mjs'), /EXPECTED_COUNT\s*=\s*28/, '守护脚本仍按 27 个 Issue 校验');
-  assert.match(read('docs/github/issue-map.md'), /\|\s*#28\s*\|/, '映射表缺 #28 行');
-  assert.match(read('test/issue-map.test.mjs'), /validRows\(1,\s*28\)/, '映射测试仍按 27 构造');
+test('#31 Issue 映射与守护脚本同源，不再写死编号', () => {
+  assert.match(
+    read('scripts/check-issue-map.mjs'),
+    new RegExp(`EXPECTED_COUNT\\s*=\\s*${EXPECTED_COUNT}`),
+    '守护脚本的 EXPECTED_COUNT 与事实源不一致',
+  );
+  assert.match(
+    read('docs/github/issue-map.md'),
+    new RegExp(`\\|\\s*#${EXPECTED_COUNT}\\s*\\|`),
+    `映射表缺 #${EXPECTED_COUNT} 行`,
+  );
+  assert.match(read('test/issue-map.test.mjs'), /EXPECTED_COUNT/, '映射测试仍在写死编号');
 });

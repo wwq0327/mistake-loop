@@ -117,6 +117,7 @@
 | 审核闸门 | 同上 | 未确认草稿不出现在 `/api/mistakes`、`/api/reviews/today`、`/api/print`、`/api/meta` 统计里；同一草稿重复 commit 幂等；`discarded` 草稿不可提交 |
 | 教学法红线 | `test/redlines.test.mjs` | 任一 AI 路径都不产生 `mastery_evidence` / `review_events`，不改已有错题状态；学生版打印响应不含 `correct_answer` 与 `scaffold_hint`；`student_conclusion` 为空仍不许进 `correcting` |
 | UI 静态规范 | `scripts/check-ui.mjs` | `tokens.css` 之外无硬编码色值；每页有 `h1` / `nav` / `label`；六页路由存在；纳入 `npm run check` |
+| 文档数字一致性 | `scripts/check-docs.mjs` + `scripts/count-tests.mjs` | README 与发布说明里写了 Issue 总数 / 用例数就必须等于真实来源；Issue 总数取 `EXPECTED_COUNT`，用例数取实际跑出来的用例数（`node --test` 与计数器对账）；纳入 `npm run check` |
 
 补充两组交付时的人工 / 实机回读（写进 PRD B 系列，不伪装成自动化测试）：
 
