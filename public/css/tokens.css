@@ -1,0 +1,93 @@
+/* mistake-loop v2 设计令牌：全项目唯一允许出现色值与字号/间距数字的文件。
+   改一处，六页与打印页一起变。命名与 docs/design/ui-preview.html 色板一致。 */
+
+:root {
+  /* 颜色：主色 / 辅色 / 强调 / 语义 / 中性 */
+  --color-primary: #1c4e80;
+  --color-primary-2: #2d6ba8;
+  --color-primary-soft: #eaf2fa;
+  --color-teal: #0f8b8d;
+  --color-teal-soft: #e6f5f4;
+  --color-amber: #c1762a;
+  --color-amber-soft: #fdf2e4;
+  --color-danger: #b5453f;
+  --color-danger-soft: #fbeceb;
+  --color-ink: #16263a;
+  --color-ink-2: #33475f;
+  --color-muted: #5c6f86;
+  --color-faint: #8a9bb0;
+  --color-canvas: #f4f7fb;
+  --color-surface: #ffffff;
+  --color-line: #e3eaf2;
+  --color-line-2: #eef3f8;
+  --color-on-primary: #ffffff;
+  --color-warning-text: #7a4e17;
+
+  /* 字号七阶 */
+  --font-1: 12px;
+  --font-2: 14px;
+  --font-3: 16px;
+  --font-4: 18px;
+  --font-5: 22px;
+  --font-6: 28px;
+  --font-7: 36px;
+  --line-body: 1.6;
+  --line-tight: 1.2;
+
+  /* 间距七阶 */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  /* 圆角四档 */
+  --radius-1: 8px;
+  --radius-2: 12px;
+  --radius-3: 18px;
+  --radius-4: 999px;
+
+  /* 阴影四档 */
+  --shadow-0: none;
+  --shadow-1: 0 1px 2px rgba(22, 38, 58, .06);
+  --shadow-2: 0 4px 14px rgba(22, 38, 58, .08);
+  --shadow-3: 0 14px 38px rgba(22, 38, 58, .12);
+
+  /* 动效两档 */
+  --motion-fast: 120ms;
+  --motion-normal: 200ms;
+
+  /* 触控下限 */
+  --touch-min: 44px;
+  --content-max: 1200px;
+}
+
+/* 深色跟随系统；打印页在 print.css 里强制覆盖回浅色。 */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-primary: #7fb0e0;
+    --color-primary-2: #9cc6ec;
+    --color-primary-soft: #1d3349;
+    --color-teal: #58c5c3;
+    --color-teal-soft: #173b3b;
+    --color-amber: #e2ab62;
+    --color-amber-soft: #3d3020;
+    --color-danger: #ef8f88;
+    --color-danger-soft: #3d2524;
+    --color-ink: #eaf1f9;
+    --color-ink-2: #c3d2e2;
+    --color-muted: #93a6bc;
+    --color-faint: #6f8299;
+    --color-canvas: #101a27;
+    --color-surface: #182537;
+    --color-line: #2a3b50;
+    --color-line-2: #223146;
+    --color-on-primary: #101a27;
+    --color-warning-text: #f0c48a;
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, .3);
+    --shadow-2: 0 4px 14px rgba(0, 0, 0, .35);
+    --shadow-3: 0 14px 38px rgba(0, 0, 0, .45);
+  }
+}
