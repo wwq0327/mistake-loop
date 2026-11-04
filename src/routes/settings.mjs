@@ -14,7 +14,17 @@ function takeSnapshot(dataDir) {
     target: basename(result.target),
     database: result.manifest.database,
     images: result.manifest.images,
-    restore: { ok: drill.ok, mismatches: drill.mismatches },
+    restore: {
+      ok: drill.ok,
+      mismatches: drill.mismatches,
+      // 恢复演练的图片核对口径（#43）：备份里的照片齐不齐，界面要看得见。
+      images: {
+        expected: drill.images.expected,
+        actual: drill.images.actual,
+        missing: drill.images.missing,
+        mismatches: drill.images.mismatches,
+      },
+    },
     createdAt: result.manifest.created_at,
   };
 }

@@ -2,6 +2,27 @@
 // 页面不出现密钥、端点或模型名；开关只在服务端已配置时可切换。
 import { el, alert, toast } from '../ui.js';
 
+// 备份结果要说清三件事：快照里有什么、恢复演练核对了多少张图、演练有没有过。
+// 演练的图片口径来自 #43 的恢复核对——照片齐不齐必须看得见，
+// 不能只报一个图片总数然后说「通过」。
+export function describeBackup(result) {
+  const parts = [`快照 ${result.target}：记录数 ${JSON.stringify(result.database)}`];
+  const drill = result.restore || {};
+  const actual = drill.images?.actual;
+  if (actual) {
+    parts.push(`图片核对：旧库原图 ${actual.legacy} 张 / 派生图 ${actual.derived} 张 / 新收件原图 ${actual.root} 张 / 被引用 ${actual.referenced} 张 / 孤儿 ${actual.orphan} 张 / 缺文件 ${actual.missing} 张`);
+  } else {
+    parts.push(`图片 ${result.images ?? 0} 张`);
+  }
+  if (drill.ok) {
+    parts.push('恢复演练：通过');
+  } else {
+    parts.push('恢复演练未通过');
+    for (const line of drill.mismatches || []) parts.push(`差异：${line}`);
+  }
+  return parts.join(' · ');
+}
+
 export async function mount({ root, api, toast: notify = toast }) {
   const toggle = document.getElementById('settings-ai-toggle');
   const configuredLabel = document.getElementById('settings-ai-configured');
@@ -55,7 +76,7 @@ export async function mount({ root, api, toast: notify = toast }) {
     backupResult.textContent = '正在生成快照并做恢复演练…';
     try {
       const result = await api('/api/backup', { method: 'POST' });
-      backupResult.textContent = `快照 ${result.target}：${JSON.stringify(result.database)}，图片 ${result.images} 张，恢复演练 ${result.ok ? '通过' : '未通过'}`;
+      backupResult.textContent = describeBackup(result);
       notify(result.ok ? '备份完成，恢复演练通过。' : '备份完成但恢复演练未通过，请检查。', result.ok ? 'info' : 'error');
     } catch (error) {
       backupResult.textContent = `备份失败：${error.message}`;
