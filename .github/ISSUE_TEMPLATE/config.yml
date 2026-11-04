@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 涉及数据暴露的问题
+    url: https://github.com/wwq0327/mistake-loop/security/advisories/new
+    about: 请走私有漏洞报告，不要在公开 Issue 贴真实学生数据或截图
