@@ -35,6 +35,44 @@
           <label for="page-q">在本页查找</label>
           <input id="page-q" class="input" type="search" placeholder="输入关键词，过滤本页内容">
         </div>
+
+        <section class="card">
+          <div class="card__body">
+            <div id="detail-progress" class="progress">
+              <div class="progress__step" role="list">
+                <div data-step="new">待诊断</div>
+                <div data-step="diagnosing">诊断中</div>
+                <div data-step="correcting">纠错中</div>
+                <div data-step="reviewing">复习中</div>
+                <div data-step="mastered">已掌握</div>
+              </div>
+            </div>
+            <p id="detail-gate" class="alert alert--warn">还差什么才能往下走：正在读取这道题…</p>
+          </div>
+        </section>
+
+        <section id="detail-basics" class="card">
+          <div class="card__head"><h2>原题与教材定位</h2></div>
+          <div class="card__body">
+            <img id="detail-image" class="qcard__figure" alt="这道题的原图">
+          </div>
+        </section>
+        <section id="detail-diagnosis" class="card">
+          <div class="card__head"><h2>诊断与学生结论</h2></div>
+          <div class="card__body"></div>
+        </section>
+        <section id="detail-variants" class="card">
+          <div class="card__head"><h2>三层变式审核</h2></div>
+          <div class="card__body"></div>
+        </section>
+        <section id="detail-reviews" class="card">
+          <div class="card__head"><h2>复习事件与调度留痕</h2></div>
+          <div class="card__body"></div>
+        </section>
+        <section id="detail-evidence" class="card">
+          <div class="card__head"><h2>掌握证据</h2></div>
+          <div class="card__body"></div>
+        </section>
         <div id="view" class="stack" aria-live="polite"></div>
       </div>
     </main>
