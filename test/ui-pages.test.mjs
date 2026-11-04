@@ -215,3 +215,34 @@ test('#23 题库筛选与批量动作都走现有 meta/mistakes 实时接口', (
   assert.match(source, /batch-textbook-ref/, '缺批量补定位接口');
   assert.match(source, /SUBJECT_MISMATCH|挂错科目|科目不一致/, '挂错科目未被拦截/提示');
 });
+
+// #24 测试先行：设置页 AI 状态、显式开关、后果说明、备份与健康入口。
+// 红灯预期：settings.html 缺骨架，settings.js 未接状态/开关/备份接口。
+test('#24 设置页含 AI 状态区、后果说明、显式开关、备份与健康入口', () => {
+  const page = read('public/settings.html');
+  assert.ok(page, 'settings.html 不存在');
+  for (const id of [
+    'settings-ai-status', 'settings-ai-toggle', 'settings-ai-warning',
+    'settings-ai-usage', 'settings-ai-error', 'settings-ai-configured',
+    'settings-backup', 'settings-backup-action', 'settings-backup-result',
+    'settings-health', 'settings-health-action', 'settings-health-result',
+  ]) {
+    assert.ok(page.includes(`id="${id}"`), `settings.html 缺 #${id}`);
+  }
+  assert.match(page, /照片将发往你配置的 AI 服务商/, '开关旁缺外发后果说明');
+  assert.match(page, /<label\s+for="settings-ai-toggle"/, '开关缺带 for 的 label');
+  assert.match(page, /备份/, '缺备份入口文案');
+  assert.match(page, /健康/, '缺健康入口文案');
+});
+
+test('#24 设置页只读非敏感状态，密钥不进页面源码', () => {
+  const source = read('public/js/pages/settings.js');
+  assert.ok(source, 'settings.js 不存在');
+  for (const path of ['/api/ai/status', '/api/ai/toggle', '/api/backup', '/health', '/api/meta']) {
+    assert.ok(source.includes(path), `未接接口 ${path}`);
+  }
+  for (const field of ['todayUsed', 'dailyLimit', 'lastError', 'pendingDrafts', 'configured']) {
+    assert.match(source, new RegExp(`\\b${field}\\b`), `未展示/读取 ${field}`);
+  }
+  assert.doesNotMatch(source, /AI_API_KEY|apiKey|AI_BASE_URL|baseUrl/, '页面出现密钥或端点字段');
+});

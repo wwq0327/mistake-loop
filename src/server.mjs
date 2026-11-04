@@ -11,13 +11,14 @@ import { createVariantsRouter } from './routes/variants.mjs';
 import { createReviewsRouter } from './routes/reviews.mjs';
 import { createPrintRouter } from './routes/print.mjs';
 import { createRecognitionsRouter } from './routes/recognitions.mjs';
+import { createSettingsRouter } from './routes/settings.mjs';
 import { createProvider } from './ai/provider.mjs';
 import { createJobWorker } from './ai/jobs.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const publicDir = join(here, '..', 'public');
 
-export function createApp({ db, dataDir, schedulerState = { running: false, lastRunAt: null, lastResult: null }, recognitionWorker = null, aiStatus = null }) {
+export function createApp({ db, dataDir, schedulerState = { running: false, lastRunAt: null, lastResult: null }, recognitionWorker = null, aiStatus = null, aiControl = null, settingsBackup = null }) {
   const app = express();
   app.disable('x-powered-by');
   app.use(express.json({ limit: '25mb' }));
@@ -38,6 +39,7 @@ export function createApp({ db, dataDir, schedulerState = { running: false, last
   app.use('/api', createReviewsRouter({ db }));
   app.use('/api', createPrintRouter({ db }));
   app.use('/api', createRecognitionsRouter({ db, dataDir, worker: recognitionWorker, aiStatus }));
+  app.use('/api', createSettingsRouter({ dataDir, aiControl, backupRunner: settingsBackup }));
 
   // 六页信息架构：路径按动作命名，静态文件名只作载体。
   const pageRoutes = [
@@ -80,24 +82,30 @@ if (isMain) {
 
   const scheduler = startScheduler(db);
   const aiProvider = createProvider();
+  // configured 只在启动时由环境变量决定；enabled 是设置页可切换的进程内暂停开关。
+  const aiControl = { configured: aiProvider.isEnabled, enabled: aiProvider.isEnabled };
   const recognitionWorker = createJobWorker({
     db,
     provider: aiProvider,
     dataDir,
-    options: { dailyLimit: aiProvider.config.dailyLimit },
+    options: {
+      dailyLimit: aiProvider.config.dailyLimit,
+      isEnabled: () => aiControl.enabled,
+    },
   });
   recognitionWorker.start();
   const aiStatus = () => {
     const startIso = new Date(`${today()}T00:00:00+08:00`).toISOString();
     return {
-      enabled: aiProvider.isEnabled,
+      enabled: aiControl.enabled,
+      configured: aiControl.configured,
       todayUsed: db.prepare('SELECT COUNT(*) c FROM recognition_jobs WHERE attempts > 0 AND created_at >= ?').get(startIso).c,
       dailyLimit: aiProvider.config.dailyLimit,
       lastError: recognitionWorker.state.lastError,
       pendingDrafts: db.prepare("SELECT COUNT(*) c FROM recognition_drafts WHERE status = 'pending'").get().c,
     };
   };
-  const app = createApp({ db, dataDir, schedulerState: scheduler.state, recognitionWorker, aiStatus });
+  const app = createApp({ db, dataDir, schedulerState: scheduler.state, recognitionWorker, aiStatus, aiControl });
   const port = Number(process.env.PORT || 8080);
   const server = app.listen(port, () => {
     console.log(`[mistake-loop] http://0.0.0.0:${port} | ${new Date().toISOString()}`);

@@ -49,6 +49,10 @@ export function createJobWorker({ db, provider, dataDir = null, options = {} } =
     sleep: options.sleep || ((ms) => new Promise((resolve) => setTimeout(resolve, ms))),
     readImage: options.readImage || ((job) => defaultReadImage(job, dataDir)),
   };
+  // 默认读 provider 的启动快照；设置页注入 isEnabled 后，每次 drain 动态读进程内开关。
+  const isEnabled = typeof options.isEnabled === 'function'
+    ? options.isEnabled
+    : () => Boolean(provider.isEnabled);
 
   const state = {
     running: false,
@@ -156,7 +160,7 @@ export function createJobWorker({ db, provider, dataDir = null, options = {} } =
   async function drain() {
     if (state.running || state.stopped) return;
     // 未启用时零调用：job 留在 queued，给每个待办 job 补一条可手填的空白草稿。
-    if (!provider.isEnabled) {
+    if (!isEnabled()) {
       for (const job of db.prepare("SELECT id FROM recognition_jobs WHERE status = 'queued'").all()) {
         ensureManualDraft(db, job.id, config.now());
       }
@@ -206,5 +210,12 @@ export function createJobWorker({ db, provider, dataDir = null, options = {} } =
     }
   }
 
-  return { start, stop, drain, processJob, state, aiEnabled: Boolean(provider.isEnabled) };
+  return {
+    start,
+    stop,
+    drain,
+    processJob,
+    state,
+    get aiEnabled() { return isEnabled(); },
+  };
 }

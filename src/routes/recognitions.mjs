@@ -126,6 +126,7 @@ function fallbackAiStatus(db, worker) {
   const startIso = new Date(`${today()}T00:00:00+08:00`).toISOString();
   return {
     enabled: Boolean(worker?.aiEnabled),
+    configured: Boolean(worker?.aiEnabled),
     todayUsed: db.prepare('SELECT COUNT(*) c FROM recognition_jobs WHERE attempts > 0 AND created_at >= ?').get(startIso).c,
     dailyLimit: 30,
     lastError: worker?.state?.lastError ?? null,

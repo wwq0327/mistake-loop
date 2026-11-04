@@ -35,6 +35,39 @@
           <label for="page-q">在本页查找</label>
           <input id="page-q" class="input" type="search" placeholder="输入关键词，过滤本页内容">
         </div>
+
+        <section id="settings-ai-status" class="card">
+          <div class="card__head">
+            <h2>AI 图片识别</h2>
+            <span class="small muted" id="settings-ai-configured">正在读取状态…</span>
+          </div>
+          <div class="card__body">
+            <div class="field">
+              <label for="settings-ai-toggle">启用 AI 图片识别</label>
+              <input id="settings-ai-toggle" type="checkbox">
+            </div>
+            <p id="settings-ai-warning" class="field__hint">照片将发往你配置的 AI 服务商。开启后题目照片会离开这台设备，识别结果只进草稿，需老师逐题确认才入库；本页不接收密钥，也不显示密钥。</p>
+            <p id="settings-ai-usage" class="small">今日已用 — / 上限 —</p>
+            <p id="settings-ai-error" class="small muted">最近失败原因：无</p>
+          </div>
+        </section>
+
+        <section id="settings-backup" class="card">
+          <div class="card__head"><h2>备份</h2><span class="small muted">快照不入库</span></div>
+          <div class="card__body">
+            <button id="settings-backup-action" class="btn btn--primary" type="button">立即备份并演练恢复</button>
+            <div id="settings-backup-result" class="small muted">尚未备份</div>
+            <p class="field__hint">也可以在本机执行 npm run backup；快照落在 data/backups/，只保留目录名，不带回本机绝对路径。</p>
+          </div>
+        </section>
+
+        <section id="settings-health" class="card">
+          <div class="card__head"><h2>服务健康</h2></div>
+          <div class="card__body">
+            <button id="settings-health-action" class="btn btn--ghost" type="button">刷新健康状态</button>
+            <div id="settings-health-result" class="small muted">尚未检查</div>
+          </div>
+        </section>
         <div id="view" class="stack" aria-live="polite"></div>
       </div>
     </main>
