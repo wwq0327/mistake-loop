@@ -41,6 +41,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
       # arm64 没有 runner 原生支持，靠 QEMU 模拟跑起来。
       - uses: docker/setup-qemu-action@v4
       - uses: docker/setup-buildx-action@v4
@@ -56,11 +59,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: 确认多架构产物里两种架构都在
-        run: |
-          set -euo pipefail
-          tar -xOf /tmp/ml-multiarch.tar index.json | grep -q 'linux/amd64'
-          tar -xOf /tmp/ml-multiarch.tar index.json | grep -q 'linux/arm64'
-          echo "多架构产物含 linux/amd64 与 linux/arm64"
+        run: node scripts/check-oci-platforms.mjs /tmp/ml-multiarch.tar
 
       - name: 构建 amd64 可运行镜像
         uses: docker/build-push-action@v7
@@ -87,6 +86,7 @@ jobs:
       - name: amd64 容器回读 /health
         run: |
           set -euo pipefail
+          test "$(docker image inspect mistake-loop:amd64 --format '{{.Architecture}}')" = "amd64"
           test "$(docker inspect --format '{{.Config.User}}' mistake-loop:amd64)" = "node"
           docker run -d --name ml-amd64 --platform linux/amd64 -p 8080:8080 -v ml-data-amd64:/data mistake-loop:amd64
           for i in $(seq 1 60); do
@@ -101,6 +101,7 @@ jobs:
       - name: arm64 容器回读 /health（QEMU 模拟）
         run: |
           set -euo pipefail
+          test "$(docker image inspect mistake-loop:arm64 --format '{{.Architecture}}')" = "arm64"
           test "$(docker inspect --format '{{.Config.User}}' mistake-loop:arm64)" = "node"
           docker run -d --name ml-arm64 --platform linux/arm64 -p 8080:8080 -v ml-data-arm64:/data mistake-loop:arm64
           for i in $(seq 1 120); do

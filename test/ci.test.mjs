@@ -90,6 +90,7 @@ test('#29 CI 里有独立的多架构容器构建 job', () => {
   assert.match(ci, /docker\/build-push-action@v[6-9]/, '缺 build-push-action');
   assert.match(ci, /platforms:\s*linux\/amd64,\s*linux\/arm64/, '没有同时构建 amd64 与 arm64');
   assert.doesNotMatch(ci, /push:\s*true/, 'CI 不得推送镜像到 registry');
+  assert.match(ci, /check-oci-platforms\.mjs/, '没有用脚本回读多架构产物');
 });
 
 test('#29 容器构建 job 里必须真的跑一次容器并回读 /health', () => {
