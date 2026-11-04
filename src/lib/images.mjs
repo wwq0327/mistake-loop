@@ -39,14 +39,21 @@ export function saveImage(dataUrl, dataDir) {
 
 // v2：原图不压缩留在 images/，供上游使用的压缩图单独放 images/derived/。
 // derived 为 null 表示前端压缩失败或未启用 AI：原图照常收件，但不发外部请求。
-export function saveRecognitionPair({ original, derived, maxDerivedBytes = DERIVED_MAX_BYTES }, dataDir) {
+export function saveRecognitionPair({ original, derived, maxDerivedBytes = DERIVED_MAX_BYTES, sharedBasename = false }, dataDir) {
   const a = parseImage(original, MAX_BYTES);
   const b = derived === null || derived === undefined ? null : parseImage(derived, maxDerivedBytes);
 
   const imagesDir = join(dataDir, 'images');
   const originalPath = `images/${writeTo(imagesDir, a.ext, a.buffer)}`;
   let derivedPath = null;
-  if (b) derivedPath = `images/derived/${writeTo(join(imagesDir, 'derived'), b.ext, b.buffer)}`;
+  if (b) {
+    // sharedBasename：压缩图与原图同名、只分目录，worker 无需额外字段即可找到。
+    const derivedDir = join(imagesDir, 'derived');
+    const filename = sharedBasename ? basename(originalPath) : `${randomUUID()}.${b.ext}`;
+    mkdirSync(derivedDir, { recursive: true });
+    writeFileSync(join(derivedDir, filename), b.buffer);
+    derivedPath = `images/derived/${filename}`;
+  }
 
   return {
     originalPath,

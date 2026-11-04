@@ -10,11 +10,14 @@ import { createMistakesRouter } from './routes/mistakes.mjs';
 import { createVariantsRouter } from './routes/variants.mjs';
 import { createReviewsRouter } from './routes/reviews.mjs';
 import { createPrintRouter } from './routes/print.mjs';
+import { createRecognitionsRouter } from './routes/recognitions.mjs';
+import { createProvider } from './ai/provider.mjs';
+import { createJobWorker } from './ai/jobs.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const publicDir = join(here, '..', 'public');
 
-export function createApp({ db, dataDir, schedulerState = { running: false, lastRunAt: null, lastResult: null } }) {
+export function createApp({ db, dataDir, schedulerState = { running: false, lastRunAt: null, lastResult: null }, recognitionWorker = null }) {
   const app = express();
   app.disable('x-powered-by');
   app.use(express.json({ limit: '25mb' }));
@@ -34,6 +37,7 @@ export function createApp({ db, dataDir, schedulerState = { running: false, last
   app.use('/api', createVariantsRouter({ db }));
   app.use('/api', createReviewsRouter({ db }));
   app.use('/api', createPrintRouter({ db }));
+  app.use('/api', createRecognitionsRouter({ db, dataDir, worker: recognitionWorker }));
 
   // 六页信息架构：路径按动作命名，静态文件名只作载体。
   const pageRoutes = [
@@ -75,7 +79,15 @@ if (isMain) {
     .run(nowIso());
 
   const scheduler = startScheduler(db);
-  const app = createApp({ db, dataDir, schedulerState: scheduler.state });
+  const aiProvider = createProvider();
+  const recognitionWorker = createJobWorker({
+    db,
+    provider: aiProvider,
+    dataDir,
+    options: { dailyLimit: aiProvider.config.dailyLimit },
+  });
+  recognitionWorker.start();
+  const app = createApp({ db, dataDir, schedulerState: scheduler.state, recognitionWorker });
   const port = Number(process.env.PORT || 8080);
   const server = app.listen(port, () => {
     console.log(`[mistake-loop] http://0.0.0.0:${port} | ${new Date().toISOString()}`);
@@ -83,6 +95,7 @@ if (isMain) {
 
   const shutdown = () => {
     scheduler.stop();
+    void recognitionWorker.stop();
     server.close(() => {
       closeDb(db);
       process.exit(0);
