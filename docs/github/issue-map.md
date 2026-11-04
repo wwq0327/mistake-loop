@@ -3,7 +3,7 @@
 | 项 | 值 |
 | --- | --- |
 | 仓库 | https://github.com/wwq0327/mistake-loop |
-| Issue 总数 | 51 |
+| Issue 总数 | 55 |
 | 生成依据 | `docs/requirements/PRD.md`（v2 增量 F15-F27 / U1-U8 / B1-B12）、`docs/plans/2026-11-04-v2-plan.md` 第九节 |
 | 校验命令 | `node scripts/check-issue-map.mjs`，由 `test/issue-map.test.mjs` 测试先行守护 |
 
@@ -64,6 +64,10 @@
 | #49 | P13 P13 断点扫除：闲置的后端能力接回界面 | F19 / AI 规格第六节 | [人工重试上限「最多 2 次」没实现：加 manual_retries 列封顶](https://github.com/wwq0327/mistake-loop/issues/49) |
 | #50 | P13 P13 断点扫除：闲置的后端能力接回界面 | F09 / B10 | [设置页备份结果不回显恢复演练的图片核对](https://github.com/wwq0327/mistake-loop/issues/50) |
 | #51 | P13 P13 断点扫除：闲置的后端能力接回界面 | U3 / 接口可达性守护 | [加接口可达性守护：机械核对后端路由与前端调用，防止再出现断点](https://github.com/wwq0327/mistake-loop/issues/51) |
+| #52 | P14 P14 教学法闸门与接口契约硬化 | F02 / F03 / F06 | [变式审核路径绕过诊断闸门：new 可直跳 reviewing，mastered 可被打回](https://github.com/wwq0327/mistake-loop/issues/52) |
+| #53 | P14 P14 教学法闸门与接口契约硬化 | U3 / 接口可达性守护 | [接口可达性守护不比对 method：前端写错方法 CI 全绿放行](https://github.com/wwq0327/mistake-loop/issues/53) |
+| #54 | P14 P14 教学法闸门与接口契约硬化 | F07 / B7 | [学生版打印卡片只有黑名单没有白名单：新字段可以悄悄上纸](https://github.com/wwq0327/mistake-loop/issues/54) |
+| #55 | P14 P14 教学法闸门与接口契约硬化 | F04 | [调度器只有留痕 SQL 有测试：启动补算与每日 00:05 触发从未被验证](https://github.com/wwq0327/mistake-loop/issues/55) |
 
 ## 阶段汇总
 
@@ -83,5 +87,6 @@
 | P11 P11 补齐老师的工作流入口 | 3 |
 | P12 P12 备份与几何图链路硬化 | 5 |
 | P13 P13 断点扫除：闲置的后端能力接回界面 | 4 |
+| P14 P14 教学法闸门与接口契约硬化 | 4 |
 
 新增 Issue 时：同步更新 `scripts/check-issue-map.mjs` 的 `EXPECTED_COUNT`，重跑测试与校验脚本。README 与发布说明里的 Issue 总数、用例数由 `scripts/check-docs.mjs` 守着，写了就必须等于真实来源，不许手抄。

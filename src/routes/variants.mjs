@@ -1,9 +1,9 @@
 import { Router } from 'express';
 import { withTransaction } from '../db.mjs';
 import { today, nowIso } from '../lib/dates.mjs';
-import { applyVariantResults } from '../state-machine.mjs';
+import { applyVariantResults, VARIANT_REVIEW_FROM, STATUS_LABEL } from '../state-machine.mjs';
 import {
-  assert, checkId, checkLevel, checkText, notFound,
+  assert, checkId, checkLevel, checkText, notFound, conflict,
 } from '../lib/validation.mjs';
 
 export function createVariantsRouter({ db }) {
@@ -58,6 +58,17 @@ export function createVariantsRouter({ db }) {
     const variant = db.prepare('SELECT * FROM variants WHERE id = ?').get(id);
     if (!variant) notFound('变式不存在');
 
+    // 教学法闸门：变式审核是第二条能改 mistakes.status 的路径，
+    // 不看所属错题的状态就会绕过诊断（new 直跳 reviewing），
+    // 还会把已掌握的题打回并清空掌握成果（mastered → diagnosing）。
+    // 这里先拦一道，状态机 applyVariantResults 里再守一道——
+    // 规则要住在规则的归属地，不能只靠调用方自觉。
+    const mistake = db.prepare('SELECT id, status FROM mistakes WHERE id = ?').get(variant.mistake_id);
+    if (!mistake) notFound('错题不存在');
+    if (!VARIANT_REVIEW_FROM.includes(mistake.status)) {
+      conflict(`当前状态是「${STATUS_LABEL[mistake.status] ?? mistake.status}」，不能审核变式。变式审核只能在「${VARIANT_REVIEW_FROM.map((s) => STATUS_LABEL[s] ?? s).join('」或「')}」进行。`);
+    }
+
     const now = nowIso();
     const date = today();
     const out = withTransaction(db, () => {
@@ -67,7 +78,7 @@ export function createVariantsRouter({ db }) {
         SELECT level, result FROM variants
         WHERE mistake_id = ? AND reviewed = 1 AND result IS NOT NULL
       `).all(variant.mistake_id);
-      const next = applyVariantResults({ results: reviewed, today: date });
+      const next = applyVariantResults({ mistake, results: reviewed, today: date });
       let advanced = false;
       if (next) {
         db.prepare(`

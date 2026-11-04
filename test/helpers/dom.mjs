@@ -49,6 +49,14 @@ export class ShimNode {
 
   replaceChildren(...nodes) { this.children = [...nodes]; }
 
+  // firstChild / lastChild / childElementCount：页面代码会用它们找挂载点，
+  // 缺了会在「append of undefined」这种看不出业务含义的地方炸。
+  get firstChild() { return this.children[0] ?? null; }
+
+  get lastChild() { return this.children[this.children.length - 1] ?? null; }
+
+  get childElementCount() { return this.children.length; }
+
   setAttribute(name, value) {
     this.attributes[name] = String(value);
     if (name === 'id') this.id = String(value);
@@ -188,7 +196,10 @@ export class ShimDOMParser {
 }
 
 // 装一套 DOM 到 globalThis，返回把手供测试查节点。
-export function installDom({ ids = [] } = {}) {
+// location 可配：页面代码从 location.pathname / location.search 取当前题号，
+// 不给 location 会让读它的页面直接 ReferenceError（测试报错会指向垫片而不是业务代码，
+// 那种报错比红灯难读）。
+export function installDom({ ids = [], location: locationOption = null } = {}) {
   const registry = new Map();
   const body = new ShimNode('body');
 
@@ -207,14 +218,32 @@ export function installDom({ ids = [] } = {}) {
     createElement: (tag) => new ShimNode(tag),
     createElementNS: (ns, tag) => new ShimNode(tag, ns),
     importNode: (node) => cloneNode(node),
-    querySelector: (selector) => (selector.startsWith('#')
-      ? getElementById(selector.slice(1))
-      : body.querySelector(selector)),
+    // 支持后代组合选择器（如 '#detail-variants .card__body'）：
+    // 页面代码用 bodyOf(id) 找「区块里的内容区」，只认单段选择器会退化成
+    // 按整串 id 现造一个空节点——内容渲染进了游离节点，测试自然找不到。
+    querySelector: (selector) => {
+      const parts = selector.trim().split(/\s+/).filter(Boolean);
+      let scope = [body];
+      for (const part of parts) {
+        const found = [];
+        for (const node of scope) {
+          for (const candidate of node.descendants()) {
+            if (matches(candidate, part) && !found.includes(candidate)) found.push(candidate);
+          }
+        }
+        scope = found;
+        if (!scope.length) break;
+      }
+      return scope[0] ?? null;
+    },
     querySelectorAll: (selector) => body.querySelectorAll(selector),
   };
 
   globalThis.document = document;
   globalThis.DOMParser = ShimDOMParser;
+  // location 默认给个最小可用的：pathname 与 search 都要有，
+  // 页面代码会用 new URLSearchParams(location.search) 读查询串。
+  globalThis.location = locationOption ?? { pathname: '/', search: '', hash: '', href: '/' };
 
   for (const id of ids) getElementById(id);
 
@@ -223,5 +252,6 @@ export function installDom({ ids = [] } = {}) {
     byId: getElementById,
     body,
     all: () => [...registry.values()],
+    setLocation: (next) => { globalThis.location = { ...globalThis.location, ...next }; },
   };
 }

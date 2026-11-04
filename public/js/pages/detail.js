@@ -211,10 +211,18 @@ export async function mount({ root, api }) {
   // 三层变式审核 + 录入。
   // 录入入口是闭环的关键一环：状态机要求三层全部审核通过才进「复习中」，
   // 界面若只能审核不能录入，老师就永远走不到复习。
+  // 变式审核的闸门与后端一致：只有「诊断中」与「纠错中」能审核。
+  // 不是这两个状态就不给审核按钮——给了也只会被后端 409 拒回来。
+  const REVIEW_FROM = ['diagnosing', 'correcting'];
+  const canReview = REVIEW_FROM.includes(item.status);
+
   const variants = bodyOf('detail-variants');
   variants.replaceChildren();
   if (!item.variants?.length) {
     variants.append(empty('还没有变式', '每题补三条：换数字、换角度、换场景。补完逐条审核，三层都通过才进入复习。'));
+  }
+  if (!canReview && (item.variants || []).some((v) => !v.reviewed)) {
+    variants.append(el('p', 'field__hint', '变式审核要在「诊断中」或「纠错中」进行。先完成诊断、把题推进到能审核的状态，才能审核三层变式。'));
   }
   const rules = meta?.variantRules?.[item.subject] ?? {};
   const existing = new Map((item.variants || []).map((v) => [v.level, v]));
@@ -227,7 +235,7 @@ export async function mount({ root, api }) {
         el('span', 'grow small', found.prompt || '（待补）'),
         el('span', 'small muted', found.reviewed ? `已审核 · ${found.result || ''}` : '待审核'),
       );
-      if (!found.reviewed) {
+      if (!found.reviewed && canReview) {
         row.append(button('审核通过', {
           variant: 'ghost',
           onClick: async () => {
