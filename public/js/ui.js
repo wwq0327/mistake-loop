@@ -97,6 +97,25 @@ export function toast(message, kind = 'info') {
   toastTimer = setTimeout(() => host.replaceChildren(), 3500);
 }
 
+// 几何图：后端给的是一段 SVG 字符串，用 DOMParser 解析后内联进题卡。
+// 不用 innerHTML（组件层禁令），也不执行 SVG 里可能带的脚本——
+// DOMParser 的 image/svg+xml 模式不跑脚本，解析失败会返回 parsererror，这里一并挡掉。
+// 必须内联（不能用 <img src="data:image/svg+xml,…">）：只有内联在 DOM 里，
+// SVG 里的 currentColor 才拿得到页面墨色，出纸层与深色模式才跟得上（见 #44）。
+export function geometryFigure(svgText) {
+  if (!svgText || typeof svgText !== 'string') return null;
+  try {
+    const parsed = new DOMParser().parseFromString(svgText, 'image/svg+xml');
+    const root = parsed?.documentElement;
+    if (!root || root.localName !== 'svg' || root.namespaceURI !== 'http://www.w3.org/2000/svg') return null;
+    const node = document.importNode(root, true);
+    node.setAttribute('class', 'qcard__figure qcard__geometry');
+    return node;
+  } catch {
+    return null;
+  }
+}
+
 export function questionCard(item, { withLines = false } = {}) {
   const node = el('article', 'qcard');
   const head = el('div', 'qcard__head');
@@ -110,6 +129,9 @@ export function questionCard(item, { withLines = false } = {}) {
     img.loading = 'lazy';
     node.append(img);
   }
+  // 几何图与照片可以并存：一道题既有作业照片又有手绘图，两张都要出。
+  const figure = geometryFigure(item.geometry_svg);
+  if (figure) node.append(figure);
   if (withLines) {
     const lines = el('div', 'qcard__lines');
     for (let i = 0; i < 3; i += 1) lines.append(el('div', 'qcard__line'));

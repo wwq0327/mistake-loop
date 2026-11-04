@@ -271,6 +271,8 @@
 .qcard__head { display: flex; justify-content: space-between; gap: var(--space-2); font-size: var(--font-1); color: var(--color-muted); }
 .qcard__prompt { font-size: var(--font-3); line-height: var(--line-body); white-space: pre-wrap; }
 .qcard__figure { max-height: calc(var(--space-7) * 5); object-fit: contain; }
+/* 几何图：内联 SVG，跟随 --color-ink，屏幕与出纸同一条墨色 */
+.qcard__geometry { display: block; max-width: 100%; max-height: calc(var(--space-7) * 5); height: auto; color: var(--color-ink); }
 .qcard__lines { display: flex; flex-direction: column; gap: var(--space-4); background-image: var(--texture-rule); }
 .qcard__line { border-bottom: 1px solid var(--color-line); min-height: var(--space-6); }
 
