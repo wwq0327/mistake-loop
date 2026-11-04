@@ -63,6 +63,46 @@ export function checkText(value, label, { required = false, max = 20000 } = {}) 
   return value;
 }
 
+// 教材定位是数据主键：节点与错题必须同一科目、同一册次、同一版本。
+// 三条写入路径（POST /mistakes、POST /mistakes/batch-textbook-ref、PATCH /mistakes/:id/diagnosis）
+// 共用这一份判定，避免各处口径不一；不匹配就拒绝，不猜。
+// 册次「未知」（NULL）不等于「冲突」：错题没记册次时，节点的册次就是正确值，直接回填。
+export function assertTextbookCompatible(mistake, node, { ids = [] } = {}) {
+  const label = ids.length ? `第 ${ids.join('、')} 题` : '错题';
+  if (mistake.subject !== node.subject) {
+    throw new ValidationError(
+      `挂错科目：${label} 是 ${mistake.subject} 的题，不能挂到 ${node.subject} 的节点上`,
+      'SUBJECT_MISMATCH',
+    );
+  }
+  const known = (value) => value !== null && value !== undefined && value !== '';
+  if (known(mistake.grade) && Number(mistake.grade) !== Number(node.grade)) {
+    throw new ValidationError(
+      `年级不一致：${label} 是 ${mistake.grade} 年级，节点是 ${node.grade} 年级`,
+      'GRADE_MISMATCH',
+    );
+  }
+  if (known(mistake.semester) && Number(mistake.semester) !== Number(node.semester)) {
+    throw new ValidationError(
+      `册次不一致：${label} 是第 ${mistake.semester} 册，节点是第 ${node.semester} 册`,
+      'SEMESTER_MISMATCH',
+    );
+  }
+  return true;
+}
+
+// 教材字段一律以节点为准：调用方手写的 grade/semester/unit_* 一律忽略。
+export function textbookFieldsFromNode(node) {
+  return {
+    edition: node.edition,
+    grade: node.grade,
+    semester: node.semester,
+    unit_no: node.unit_no,
+    unit_title: node.unit_title,
+    lesson_title: node.lesson_title ?? '',
+  };
+}
+
 // 转义用户内容，前端一律用 textContent；此处给需要拼 HTML 的几何图用。
 export function escapeHtml(value) {
   return String(value ?? '')

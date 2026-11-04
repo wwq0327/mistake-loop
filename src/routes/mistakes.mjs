@@ -5,7 +5,7 @@ import { EDITIONS } from '../lib/subjects.mjs';
 import { saveImage } from '../lib/images.mjs';
 import {
   assert, checkSubject, checkCategory, checkStatus, checkId, checkText,
-  notFound, conflict,
+  notFound, conflict, assertTextbookCompatible, textbookFieldsFromNode,
 } from '../lib/validation.mjs';
 
 const COLUMNS = [
@@ -38,17 +38,19 @@ export function createMistakesRouter({ db, dataDir }) {
 
     const student = db.prepare('SELECT id FROM students ORDER BY id LIMIT 1').get();
     const values = Object.fromEntries(COLUMNS.map((c) => [c, null]));
+    // 教材字段以节点为准：请求体里手写的教材字段一律忽略，避免主键被伪造值污染。
+    const textbook = nodeRow ? textbookFieldsFromNode(nodeRow) : {};
     Object.assign(values, {
       source_ref: null,
       student_id: student?.id ?? null,
       textbook_node_id: textbookNodeId,
       subject,
-      edition: body.edition ?? nodeRow?.edition ?? EDITIONS[subject],
-      grade: body.grade ?? nodeRow?.grade ?? 4,
-      semester: body.semester ?? nodeRow?.semester ?? 1,
-      unit_no: body.unit_no ?? nodeRow?.unit_no ?? null,
-      unit_title: body.unit_title ?? nodeRow?.unit_title ?? null,
-      lesson_title: checkText(body.lesson_title, '课题'),
+      edition: textbook.edition ?? body.edition ?? EDITIONS[subject],
+      grade: textbook.grade ?? body.grade ?? 4,
+      semester: textbook.semester ?? body.semester ?? 1,
+      unit_no: textbook.unit_no ?? body.unit_no ?? null,
+      unit_title: textbook.unit_title ?? body.unit_title ?? null,
+      lesson_title: textbook.lesson_title ?? checkText(body.lesson_title, '课题'),
       page_no: checkText(body.page_no, '页码'),
       question_type: checkText(body.question_type, '题型'),
       difficulty: checkText(body.difficulty, '难度'),
@@ -86,7 +88,7 @@ export function createMistakesRouter({ db, dataDir }) {
 
     const placeholders = ids.map(() => '?').join(', ');
     const rows = db.prepare(`
-      SELECT id, subject, textbook_node_id, needs_textbook_ref
+      SELECT id, subject, grade, semester, textbook_node_id, needs_textbook_ref
       FROM mistakes WHERE id IN (${placeholders})
     `).all(...ids);
     assert(rows.length === ids.length, '有题目不存在，整批不处理', 'INVALID_IDS');
@@ -96,10 +98,15 @@ export function createMistakesRouter({ db, dataDir }) {
       `挂错科目：${mismatched.map((row) => row.id).join(', ')} 不是 ${node.subject} 的题`,
       'SUBJECT_MISMATCH',
     );
+    // 教材定位是主键：年级/册次不一致一律整批拒绝，不静默覆盖错题的册次属性。
+    for (const row of rows) {
+      assertTextbookCompatible(row, node, { ids: [row.id] });
+    }
 
     // 已挂到同一节点且已清标记的题跳过，重复点不会制造多余写入。
     const toUpdate = rows.filter((row) => row.textbook_node_id !== nodeId || row.needs_textbook_ref !== 0);
     const now = nowIso();
+    const fields = textbookFieldsFromNode(node);
     withTransaction(db, () => {
       const stmt = db.prepare(`
         UPDATE mistakes
@@ -108,8 +115,8 @@ export function createMistakesRouter({ db, dataDir }) {
         WHERE id = ?
       `);
       for (const row of toUpdate) {
-        stmt.run(nodeId, node.edition, node.grade, node.semester, node.unit_no,
-          node.unit_title, node.lesson_title, now, row.id);
+        stmt.run(nodeId, fields.edition, fields.grade, fields.semester, fields.unit_no,
+          fields.unit_title, fields.lesson_title, now, row.id);
       }
     });
     res.json({
@@ -179,9 +186,12 @@ export function createMistakesRouter({ db, dataDir }) {
         conflict('学生未说出关键结论，不能进入纠错中');
       }
     }
+    let nodeRow = null;
     if (body.textbook_node_id) {
-      const node = db.prepare('SELECT id FROM textbook_nodes WHERE id = ?').get(checkId(body.textbook_node_id));
-      if (!node) notFound('教材节点不存在');
+      nodeRow = db.prepare('SELECT * FROM textbook_nodes WHERE id = ?').get(checkId(body.textbook_node_id));
+      if (!nodeRow) notFound('教材节点不存在');
+      // 科目/册次不一致一律拒绝；教材字段随后从节点回填，不采信请求体里手写的值。
+      assertTextbookCompatible(current, nodeRow, { ids: [id] });
     }
 
     const allowed = [
@@ -191,10 +201,17 @@ export function createMistakesRouter({ db, dataDir }) {
     const sets = [];
     const params = [];
     for (const key of allowed) {
+      // 挂了节点时，教材字段由节点决定，请求体里的同名字段忽略。
+      if (nodeRow && ['unit_no', 'unit_title', 'lesson_title'].includes(key)) continue;
       if (body[key] !== undefined) {
         sets.push(`${key} = ?`);
         params.push(body[key]);
       }
+    }
+    if (nodeRow) {
+      const fields = textbookFieldsFromNode(nodeRow);
+      sets.push('edition = ?', 'grade = ?', 'semester = ?');
+      params.push(fields.edition, fields.grade, fields.semester);
     }
     sets.push('status = ?', 'updated_at = ?');
     params.push(target, nowIso());
