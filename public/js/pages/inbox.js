@@ -270,6 +270,7 @@ export async function mount({ root, api, state }) {
       await refresh();
     } catch (error) {
       notify(`没能重试：${error.message}`, 'error');
+      await refresh();
     }
   }
 
@@ -492,8 +493,21 @@ export async function mount({ root, api, state }) {
     if (job.status === 'failed') {
       // 失败不是死路：重试与手工录入是两条并行的路（AI 规格 failed → queued，人工重试）。
       const box = el('div', 'stack');
-      box.append(alert(`识别失败（${job.error_code || '未知原因'}）。原图仍在这里：可以重试识别，也可以改为手工录入。`, 'warn'));
-      box.append(button('重试识别', { variant: 'primary', onClick: () => retryJob(job) }));
+      // 人工重试最多 2 次（规格第 86 行）。用满之后按钮置灰而不是消失：
+      // 消失会让老师以为界面坏了，置灰 + 说明才告诉他「这条路走到头了，换手工录入」。
+      const used = Number(job.manual_retries) || 0;
+      const limit = Number(job.manual_retry_limit) || 2;
+      const exhausted = used >= limit;
+      const usedText = used > 0 ? `（已重试 ${used} 次，上限 ${limit} 次）` : '';
+      box.append(alert(
+        `识别失败（${job.error_code || '未知原因'}）。原图仍在这里：可以重试识别，也可以改为手工录入。${usedText}`,
+        'warn',
+      ));
+      box.append(button(exhausted ? `已重试 ${used} 次，不能再重试` : '重试识别', {
+        variant: 'primary',
+        disabled: exhausted,
+        onClick: () => retryJob(job),
+      }));
       root.replaceChildren(box);
     }
   }

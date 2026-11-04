@@ -4,7 +4,7 @@ import { Router } from 'express';
 import { saveRecognitionPair } from '../lib/images.mjs';
 import { withTransaction } from '../db.mjs';
 import { EDITIONS } from '../lib/subjects.mjs';
-import { SUBJECTS } from '../state-machine.mjs';
+import { SUBJECTS, MANUAL_RETRY_LIMIT } from '../state-machine.mjs';
 import { ensureManualDraft } from '../ai/jobs.mjs';
 import { checkId, checkText, checkSubject, notFound, conflict, ValidationError } from '../lib/validation.mjs';
 import { nowIso, today } from '../lib/dates.mjs';
@@ -32,6 +32,8 @@ function publicJob(row) {
     provider: row.provider,
     model: row.model,
     attempts: row.attempts,
+    manual_retries: row.manual_retries ?? 0,
+    manual_retry_limit: MANUAL_RETRY_LIMIT,
     error_code: row.error_code,
     token_estimate: row.token_estimate,
     created_at: row.created_at,
@@ -222,8 +224,24 @@ export function createRecognitionsRouter({ db, dataDir, worker = null, aiStatus 
     const job = db.prepare('SELECT * FROM recognition_jobs WHERE id = ?').get(id);
     if (!job) notFound('识别任务不存在');
     if (job.status !== 'failed') conflict('只有失败任务可以重试');
-    db.prepare("UPDATE recognition_jobs SET status = 'queued', attempts = 0, error_code = NULL, finished_at = NULL WHERE id = ?").run(id);
-    res.json({ id, status: 'queued', attempts: 0 });
+    // 人工重试上限：规格第 86 行「failed → queued（人工重试，最多 2 次）」。
+    // 每次重试都会再走一遍 provider、消耗调用额度，所以必须有上限并记在库里。
+    const used = job.manual_retries ?? 0;
+    if (used >= MANUAL_RETRY_LIMIT) {
+      conflict(`这个任务已经重试 ${MANUAL_RETRY_LIMIT} 次了，不能再重试。可以手工录入，或者重新上传原图。`);
+    }
+    // attempts 归零是重试能跑的前提（worker 靠它算内部重试预算），
+    // 人工重试次数另记 manual_retries，两者语义不同，不能互相顶替。
+    db.prepare(
+      "UPDATE recognition_jobs SET status = 'queued', attempts = 0, manual_retries = ?, error_code = NULL, finished_at = NULL WHERE id = ?",
+    ).run(used + 1, id);
+    res.json({
+      id,
+      status: 'queued',
+      attempts: 0,
+      manual_retries: used + 1,
+      manual_retry_limit: MANUAL_RETRY_LIMIT,
+    });
   });
 
   router.patch('/recognition-drafts/:id', (req, res) => {

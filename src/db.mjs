@@ -26,6 +26,13 @@ export function migrateV2(db) {
   if (!cols.includes('recognition_draft_id')) {
     db.exec('ALTER TABLE mistakes ADD COLUMN recognition_draft_id INTEGER');
   }
+  // recognition_jobs.manual_retries：人工重试次数（规格：人工重试最多 2 次）。
+  // CREATE TABLE IF NOT EXISTS 对已有表不改结构，旧库必须靠这条 ALTER 补列。
+  // 不复用 attempts：attempts 归零是重试能跑的前提，且 attempts > 0 是每日配额的判据。
+  const jobCols = db.prepare('PRAGMA table_info(recognition_jobs)').all().map((r) => r.name);
+  if (!jobCols.includes('manual_retries')) {
+    db.exec('ALTER TABLE recognition_jobs ADD COLUMN manual_retries INTEGER NOT NULL DEFAULT 0');
+  }
 }
 
 // node:sqlite 没有事务包装器，本项目唯一需要手写的运行时补丁。

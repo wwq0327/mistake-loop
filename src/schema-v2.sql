@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS recognition_jobs (
   provider       TEXT,
   model          TEXT,
   attempts       INTEGER NOT NULL DEFAULT 0,
+  manual_retries INTEGER NOT NULL DEFAULT 0,
   error_code     TEXT,
   token_estimate INTEGER,
   created_at     TEXT NOT NULL,
@@ -44,3 +45,8 @@ CREATE TABLE IF NOT EXISTS recognition_drafts (
 -- 不新增 idx_ 开头的索引：v1 的 test/db.test.mjs D5 断言索引集合恰为三条，
 -- 按「已有测试一个不改」的红线，v2 保持索引数量不变。
 -- recognition_drafts 已有 UNIQUE(job_id, seq) 自动索引，足够当前单用户数据量。
+
+-- manual_retries：人工重试次数（规格：人工重试最多 2 次）。
+-- 不能复用 attempts——attempts 归零是重试能跑起来的前提（worker 靠它算内部重试预算），
+-- 且 attempts > 0 是每日配额的「已尝试」判据；两处都要求 attempts 保持 worker 语义。
+-- 已有库走 migrateV2() 里的 ALTER TABLE 补列，这里只管新建库。

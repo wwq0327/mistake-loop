@@ -11,6 +11,12 @@ export const EVIDENCE_KINDS = [
 // round -> 距今天数。第 4 轮做对但无证据时仍按 30 天再约一次，不卡死。
 export const INTERVALS = { 1: 1, 2: 3, 3: 7, 4: 30 };
 
+// AI 识别任务的人工重试上限。
+// 依据 docs/requirements/AI-vision-spec.md 第 86 行：failed → queued（人工重试，最多 2 次）。
+// 每次人工重试都会再走一遍 provider、消耗调用额度，所以次数要封顶并记在库里
+// （recognition_jobs.manual_retries）。
+export const MANUAL_RETRY_LIMIT = 2;
+
 export function canMaster(round, evidenceCount) {
   return round >= 4 && evidenceCount >= 1;
 }

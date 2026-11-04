@@ -61,7 +61,7 @@
 | #46 | P12 P12 备份与几何图链路硬化 | F07 / U6 | [几何图从来不落到纸面：打印接口带着 SVG，前端却不画](https://github.com/wwq0327/mistake-loop/issues/46) |
 | #47 | P12 P12 备份与几何图链路硬化 | U6 / 几何图健壮性 | [num() 把 null 当 0：线宽与字号变 0，画出来的图直接看不见](https://github.com/wwq0327/mistake-loop/issues/47) |
 | #48 | P13 P13 断点扫除：闲置的后端能力接回界面 | F19 / AI 规格第六节 | [识别失败没有重试入口：规格写明 failed → queued，界面只给「手工录入」](https://github.com/wwq0327/mistake-loop/issues/48) |
-| #49 | P13 P13 断点扫除：闲置的后端能力接回界面 | F19 / AI 规格第六节 | [人工重试上限「最多 2 次」没实现（需 schema 变更，待确认）](https://github.com/wwq0327/mistake-loop/issues/49) |
+| #49 | P13 P13 断点扫除：闲置的后端能力接回界面 | F19 / AI 规格第六节 | [人工重试上限「最多 2 次」没实现：加 manual_retries 列封顶](https://github.com/wwq0327/mistake-loop/issues/49) |
 | #50 | P13 P13 断点扫除：闲置的后端能力接回界面 | F09 / B10 | [设置页备份结果不回显恢复演练的图片核对](https://github.com/wwq0327/mistake-loop/issues/50) |
 | #51 | P13 P13 断点扫除：闲置的后端能力接回界面 | U3 / 接口可达性守护 | [加接口可达性守护：机械核对后端路由与前端调用，防止再出现断点](https://github.com/wwq0327/mistake-loop/issues/51) |
 
