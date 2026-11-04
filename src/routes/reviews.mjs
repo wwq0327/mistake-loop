@@ -3,7 +3,7 @@ import { withTransaction } from '../db.mjs';
 import { today, nowIso, daysBetween } from '../lib/dates.mjs';
 import { applyReview } from '../state-machine.mjs';
 import {
-  checkId, checkResult, checkEvidence, checkText, notFound, conflict,
+  checkId, checkResult, checkEvidence, checkText, checkDate, notFound, conflict,
 } from '../lib/validation.mjs';
 
 export function createReviewsRouter({ db }) {
@@ -30,6 +30,11 @@ export function createReviewsRouter({ db }) {
     const evidenceType = body.evidence_type ? checkEvidence(body.evidence_type) : null;
     const note = checkText(body.note, '备注');
     const evidenceNote = checkText(body.evidence_note, '证据说明');
+    // #56：「这次复习」的身份是它针对的到期日。
+    // 传了就查重——同一次复习只记一遍，老师手快连点两下不会记成两轮。
+    // 不传则行为完全不变：连做多轮（v1 的 P7 连发 4 次）仍然可用。
+    // 从数据上分不清「连点两下」与「连做 4 轮」，判据只能由前端给。
+    const dueOn = body.due_on ? checkDate(body.due_on) : null;
 
     const current = db.prepare('SELECT * FROM mistakes WHERE id = ?').get(id);
     if (!current) notFound('错题不存在');
@@ -38,6 +43,16 @@ export function createReviewsRouter({ db }) {
     const now = nowIso();
     const date = today();
     const next = withTransaction(db, () => {
+      if (dueOn) {
+        // 判重放在事务里：两个并发请求只有一个能过。
+        const done = db.prepare('SELECT id FROM review_events WHERE mistake_id = ? AND due_on = ?').get(id, dueOn);
+        if (done) conflict('这次复习已经记过了，别重复点。');
+        if (current.next_review !== dueOn) {
+          conflict(current.next_review
+            ? '这次复习的到期日对不上，请刷新页面后再记。'
+            : '这道题没有排期，不能记复习结果。');
+        }
+      }
       let evidenceCount = db.prepare('SELECT COUNT(*) c FROM mastery_evidence WHERE mistake_id = ?').get(id).c;
       if (evidenceType) {
         db.prepare(`

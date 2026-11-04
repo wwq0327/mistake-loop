@@ -36,18 +36,28 @@ export async function mount({ root, api, state }) {
     button('翻题库', { variant: 'ghost', onClick: () => { location.href = '/library'; } }),
   );
 
-  async function submitResult(item, result, evidenceSelect) {
+  async function submitResult(item, result, evidenceSelect, rowButtons) {
     const body = { result };
+    // #56：带上这道题「这次复习」的到期日——它是这次复习的身份。
+    // 后端拿它判重，同一次复习只记一遍；不带的话后端分不清「连点两下」与「连做多轮」。
+    if (item.next_review) body.due_on = item.next_review;
     if (result === 'correct' && (item.review_round ?? 0) >= 3 && evidenceSelect?.value) {
       body.evidence_type = evidenceSelect.value;
       body.evidence_note = '老师在复习现场记录的学生证据';
     }
+    // 请求在飞时把这一行的两个按钮都置灰：老师手快连点两下不该记成两轮。
+    // 与后端的 due_on 判重是两道独立的防线——置灰防的是「还没发出去的那一下」，
+    // due_on 防的是「已经发出去两次」。
+    for (const node of rowButtons) node.disabled = true;
     try {
       await api(`/api/reviews/${item.id}/result`, { method: 'POST', body });
       toast(result === 'correct' ? '已记做对，下一次复习按 1-3-7-30 排期。' : '已记做错，回到当前轮次继续练。');
       await mount({ root, api, state });
     } catch (error) {
-      toast(`没能记录：${error.message}`, 'error');
+      // 409 是「这次复习已经记过了」，不是记录失败：说人话，
+      // 别让老师以为自己没记上、又去点一次。
+      toast(error?.status === 409 ? '这次复习已经记过了，别重复点。' : `没能记录：${error.message}`, 'error');
+      for (const node of rowButtons) node.disabled = false;
     }
   }
 
@@ -84,9 +94,14 @@ export async function mount({ root, api, state }) {
       field.append(label, evidenceSelect);
       row.append(field);
     }
+    // 这一行的两个动作按钮：提交在飞时一并置灰，所以按钮要先造出来再互相引用。
+    const rowButtons = [];
+    const correctBtn = button('做对', { variant: 'ghost', onClick: () => submitResult(item, 'correct', evidenceSelect, rowButtons) });
+    const wrongBtn = button('做错', { variant: 'ghost', onClick: () => submitResult(item, 'wrong', evidenceSelect, rowButtons) });
+    rowButtons.push(correctBtn, wrongBtn);
     row.append(
-      button('做对', { variant: 'ghost', onClick: () => submitResult(item, 'correct', evidenceSelect) }),
-      button('做错', { variant: 'ghost', onClick: () => submitResult(item, 'wrong', evidenceSelect) }),
+      correctBtn,
+      wrongBtn,
       link('记录证据 →', `/mistake/${item.id}`, 'small'),
     );
     todayBody.append(row);
