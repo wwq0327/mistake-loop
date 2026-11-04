@@ -9,6 +9,9 @@ const STATUS_INDEX = { new: 0, diagnosing: 1, correcting: 2, reviewing: 3, maste
 const SUBJECT_LABEL = { math: '数学', chinese: '语文', english: '英语' };
 const LEVELS = ['surface', 'structure', 'context'];
 const LEVEL_LABEL = { surface: '换数字（表面）', structure: '换角度（结构）', context: '换场景（情境）' };
+const CATEGORY_LABEL = {
+  conceptual: '概念不清', procedural: '步骤出错', metacognitive: '策略习惯', factual: '知识遗忘',
+};
 
 function nextRequirement(item) {
   const evidenceCount = item.mastery_evidence?.length ?? 0;
@@ -72,7 +75,8 @@ export async function mount({ root, api }) {
     el('span', 'small muted', `教材定位：${item.unit_title || item.lesson_title || '待补'}`),
     el('span', 'small muted', `版本：${item.edition || '按旧库骨架'}`),
     el('span', 'small muted', `册次：${item.grade ?? 4} 年级第 ${item.semester ?? 1} 册`),
-    el('span', 'small muted', `错因：${item.error_category || '待归类'}`),
+    el('span', 'small muted', `错因：${item.error_category ? (CATEGORY_LABEL[item.error_category] ?? item.error_category) : '待归类'}`),
+    el('span', 'small muted', `子类型：${item.error_subtype || '待归类'}`),
     el('span', 'small muted', `复习轮次：${item.review_round ?? 0}`),
     el('span', 'small muted', `下次复习：${item.next_review || '未排期'}`),
   );
@@ -82,6 +86,94 @@ export async function mount({ root, api }) {
   const diagnosis = bodyOf('detail-diagnosis');
   diagnosis.replaceChildren();
   diagnosis.append(el('p', 'small', `学生自己说出的关键结论：${item.student_conclusion || '（尚未填写）'}`));
+
+  // 错因录入：大类、分类按科目分列，选项取自服务端字典，前端不硬编码。
+  const categories = meta?.categories ?? ['conceptual', 'procedural', 'metacognitive', 'factual'];
+  const subtypes = meta?.errorSubtypes?.[item.subject] ?? {};
+  const unclassified = meta?.unclassified ?? '待归类';
+
+  const categoryField = el('div', 'field');
+  const categoryLabelEl = el('label', '', '错因大类');
+  categoryLabelEl.htmlFor = 'detail-category';
+  const categorySelect = el('select', 'select');
+  categorySelect.id = 'detail-category';
+  const categoryBlank = el('option', '', '未选');
+  categoryBlank.value = '';
+  categorySelect.append(categoryBlank);
+  for (const category of categories) {
+    const option = el('option', '', CATEGORY_LABEL[category] ?? category);
+    option.value = category;
+    if (category === item.error_category) option.selected = true;
+    categorySelect.append(option);
+  }
+  categoryField.append(categoryLabelEl, categorySelect);
+
+  const subtypeField = el('div', 'field');
+  const subtypeLabelEl = el('label', '', '错因子类型');
+  subtypeLabelEl.htmlFor = 'detail-subtype';
+  const subtypeSelect = el('select', 'select');
+  subtypeSelect.id = 'detail-subtype';
+  // 子类跟着大类走；没定大类时只剩「待归类」，与后端校验口径一致。
+  const fillSubtypes = (category) => {
+    subtypeSelect.replaceChildren();
+    const blank = el('option', '', '未选');
+    blank.value = '';
+    subtypeSelect.append(blank);
+    const list = category ? [...(subtypes[category] ?? []), unclassified] : [unclassified];
+    for (const value of list) {
+      const option = el('option', '', value);
+      option.value = value;
+      if (value === item.error_subtype) option.selected = true;
+      subtypeSelect.append(option);
+    }
+  };
+  fillSubtypes(item.error_category);
+  categorySelect.addEventListener('change', () => fillSubtypes(categorySelect.value));
+  subtypeField.append(subtypeLabelEl, subtypeSelect);
+
+  const reasonField = el('div', 'field');
+  const reasonLabelEl = el('label', '', '错因说明：这题卡在哪（一次只问学生一个点）');
+  reasonLabelEl.htmlFor = 'detail-reason';
+  const reasonInput = el('textarea', 'textarea');
+  reasonInput.id = 'detail-reason';
+  reasonInput.rows = 2;
+  reasonInput.value = item.error_reason || '';
+  reasonField.append(reasonLabelEl, reasonInput);
+
+  // 只送改动过的错因字段，避免只记结论时把已录的错因清空。
+  const causePayload = () => {
+    const payload = {};
+    const category = categorySelect.value;
+    const subtype = subtypeSelect.value;
+    const reason = reasonInput.value.trim();
+    if (category !== (item.error_category ?? '')) payload.error_category = category || null;
+    if (subtype !== (item.error_subtype ?? '')) payload.error_subtype = subtype || null;
+    if (reason !== String(item.error_reason ?? '').trim()) payload.error_reason = reason || null;
+    return payload;
+  };
+
+  const saveCause = button('只保存错因', {
+    variant: 'secondary',
+    onClick: async () => {
+      const payload = causePayload();
+      if (!Object.keys(payload).length) {
+        toast('错因没有改动。');
+        return;
+      }
+      try {
+        await api(`/api/mistakes/${id}/diagnosis`, { method: 'PATCH', body: payload });
+        toast('错因已保存。');
+        await mount({ root, api });
+      } catch (error) {
+        toast(`没能保存错因：${error.message}`, 'error');
+      }
+    },
+  });
+  diagnosis.append(categoryField, subtypeField, reasonField);
+  const causeRow = el('div', 'row');
+  causeRow.append(saveCause, el('span', 'field__hint', '错因按科目分列：语文只收已验证过的子类，英语先留「待归类」。'));
+  diagnosis.append(causeRow);
+
   const conclusionField = el('div', 'field');
   const label = el('label', '', '记录学生说出的关键结论（不能由系统代填）');
   label.htmlFor = 'detail-conclusion';
@@ -99,7 +191,7 @@ export async function mount({ root, api }) {
       try {
         await api(`/api/mistakes/${id}/diagnosis`, {
           method: 'PATCH',
-          body: { status: 'correcting', student_conclusion: conclusionInput.value },
+          body: { status: 'correcting', student_conclusion: conclusionInput.value, ...causePayload() },
         });
         toast('已保存学生结论并进入纠错中。');
         await mount({ root, api });

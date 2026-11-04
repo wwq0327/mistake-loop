@@ -148,3 +148,36 @@ test('#42 纯函数层：字典按科目分列，互不共用', () => {
   assert.equal(checkSubtype('math', 'procedural', '计算失误'), '计算失误');
   assert.equal(checkSubtype('chinese', 'factual', '部首遗忘'), '部首遗忘');
 });
+
+test('#41 录进去的错因能在详情接口读回来', async () => {
+  await setup();
+  try {
+    const id = await makeMistake('chinese');
+    const out = await diagnose(id, {
+      error_category: 'conceptual',
+      error_subtype: '近义词混淆',
+      error_reason: '两个词的意思讲不清，只记住了形近',
+    });
+    assert.equal(out.status, 200);
+    const res = await fetch(`${base}/api/mistakes/${id}`);
+    const item = await res.json();
+    assert.equal(item.error_category, 'conceptual');
+    assert.equal(item.error_subtype, '近义词混淆');
+    assert.equal(item.error_reason, '两个词的意思讲不清，只记住了形近');
+  } finally { teardown(); }
+});
+
+test('#41 错因不上学生版打印页', async () => {
+  await setup();
+  try {
+    const id = await makeMistake('math');
+    await diagnose(id, { error_category: 'factual', error_subtype: '公式遗忘', error_reason: '公式没背' });
+    const res = await fetch(`${base}/api/print?ids=${id}`);
+    const body = await res.json();
+    assert.equal(body.cards.length, 1);
+    const keys = Object.keys(body.cards[0]);
+    for (const forbidden of ['error_category', 'error_subtype', 'error_reason', 'diagnosis_note', 'student_conclusion']) {
+      assert.ok(!keys.includes(forbidden), `学生版打印页不该出现 ${forbidden}`);
+    }
+  } finally { teardown(); }
+});

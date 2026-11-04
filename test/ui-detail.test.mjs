@@ -72,3 +72,19 @@ test('#40 变式录入的界面控件沿用既有组件类，不写死宽度', (
   assert.doesNotMatch(js, /style\.width\s*=\s*['"]\d/, '不应写死宽度');
 });
 
+
+test('#41 详情页有错因录入：大类、分类与说明', () => {
+  assert.match(js, /error_category/, '未读写错因大类');
+  assert.match(js, /error_subtype/, '未读写错因子类型');
+  assert.match(js, /error_reason/, '未读写错因说明');
+});
+
+test('#41 错因子类的选项取自服务端字典，按科目分列', () => {
+  assert.match(js, /errorSubtypes/, '子类选项应取自 /api/meta 的 errorSubtypes');
+  assert.match(js, /select/, '应有下拉控件');
+  assert.match(js, /change/, '大类变了子类选项要跟着变');
+});
+
+test('#41 没改动的错因字段不随提交送出，避免误清空', () => {
+  assert.match(js, /causePayload|error_category\s*!==|!==\s*item\.error_category/, '应只送改动过的错因字段');
+});
