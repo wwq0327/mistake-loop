@@ -1,6 +1,7 @@
 // #26 B1-B12 全量验收与结果回读：逐项留实际数字或复现步骤，不接受「命令执行成功」当结论。
+// #32 起 B11 拆两半：能机器判的由 scripts/check-visual.mjs 判掉，审美的仍由使用者判断。
 // 用法：node scripts/acceptance.mjs
-// 任一 B 项不达标即退出 1；B11 是人工判断项，只标注「待判断」，不算通过也不算失败。
+// 任一 B 项不达标即退出 1；B11 的审美部分只标注「待用户判断」，不算通过也不算失败。
 import { spawnSync } from 'node:child_process';
 import {
   mkdtempSync, mkdirSync, copyFileSync, cpSync, existsSync, readdirSync,
@@ -13,6 +14,7 @@ import { openDb, migrate, closeDb } from '../src/db.mjs';
 import { createApp } from '../src/server.mjs';
 import { createJobWorker } from '../src/ai/jobs.mjs';
 import { checkUi } from './check-ui.mjs';
+import { checkVisual } from './check-visual.mjs';
 import { parseTestSummary } from './parse-test-summary.mjs';
 import { backup, restore } from './backup.mjs';
 
@@ -36,9 +38,9 @@ const THREE_QUESTIONS = JSON.stringify({
 });
 
 const results = [];
-function record(key, title, ok, evidence) {
-  const status = ok === null ? '待判断' : ok ? 'PASS' : 'FAIL';
-  results.push({ key, title, ok, status, evidence });
+function record(key, title, ok, evidence, { statusLabel = null, extra = null } = {}) {
+  const status = statusLabel ?? (ok === null ? '待判断' : ok ? 'PASS' : 'FAIL');
+  results.push({ key, title, ok, status, evidence, extra });
   console.log(`${status} ${key} ${title} | ${evidence}`);
 }
 
@@ -291,9 +293,16 @@ async function main() {
       `旧库 ${LEGACY} 的 git status 仍 ${lines} 项（全程只读）；v1 数据回读 ${counts.mistakes} 题 / ${counts.variants} 变式 / ${images} 张图 / ${counts.textbook_nodes} 个教材节点，一条不丢；真实库只在临时副本上打开`);
   }
 
-  // B11：PRD 明确「由你判断，不由开发自评」，只能待判断。
-  record('B11', '视觉一致性', null,
-    `待用户判断，不由开发自评：静态视觉稿 6 屏在 docs/design/ui-preview.html，实际六页在 /、/inbox、/mistake/:id、/print、/library、/settings；请对照审阅后由你给结论`);
+  // B11：拆两半——能机器判的判掉，审美仍由使用者判断，不由开发自评。
+  {
+    const visual = checkVisual(root);
+    const machine = `机器核对：\`node scripts/check-visual.mjs\` → ${visual.ok ? 'PASS' : 'FAIL'}（${visual.passed}/${visual.total} 项判定通过，${visual.checks.length} 组）：${visual.checks.map((c) => c.name).join('；')}；判定脚本只读，不改六页 HTML 与业务 JS`;
+    const human = '人工观感待用户判断：字距舒不舒服、墨色与朱红的比例好不好看，仍由你给结论；静态视觉稿 6 屏在 docs/design/ui-preview.html，实际六页在 /、/inbox、/mistake/:id、/print、/library、/settings，请对照审阅后由你判断，不由开发自评';
+    record('B11', '视觉一致性', null, machine, {
+      statusLabel: `机器核对 ${visual.ok ? 'PASS' : 'FAIL'}（${visual.passed}/${visual.total} 项判定通过，${visual.checks.length} 组）；人工观感待用户判断`,
+      extra: `人工观感：${human}`,
+    });
+  }
 
   // B12：本地与远程一致、工作区干净（排除本次验收交付物）。
   {
@@ -324,6 +333,7 @@ async function main() {
       '',
       `- 状态：${item.status}`,
       `- 证据：${item.evidence}`,
+      ...(item.extra ? [`- ${item.extra}`] : []),
       '',
     ]),
     '## 第二层：四项实机 / 试运行未验证项',

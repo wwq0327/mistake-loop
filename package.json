@@ -12,7 +12,7 @@
     "dev": "node src/server.mjs",
     "start": "node src/server.mjs",
     "test": "node --test test/*.test.mjs",
-    "check": "for f in $(find src scripts test -name '*.mjs'); do node --check \"$f\" || exit 1; done && for f in $(find public/js -name '*.js'); do node --check \"$f\" || exit 1; done && node scripts/check-ui.mjs && node scripts/check-issue-map.mjs && node scripts/count-tests.mjs && node scripts/check-docs.mjs",
+    "check": "for f in $(find src scripts test -name '*.mjs'); do node --check \"$f\" || exit 1; done && for f in $(find public/js -name '*.js'); do node --check \"$f\" || exit 1; done && node scripts/check-ui.mjs && node scripts/check-issue-map.mjs && node scripts/check-visual.mjs && node scripts/count-tests.mjs && node scripts/check-docs.mjs",
     "migrate:v2": "node scripts/migrate-v2.mjs",
     "import:legacy": "node scripts/import-legacy.mjs",
     "backup": "node scripts/backup.mjs"

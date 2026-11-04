@@ -6,7 +6,7 @@
 
 **公开开源（MIT）· 开发进度全部走 GitHub Issues · 测试先行 · CI 守护**
 
-> `main` 是已交付的 v2：六页界面、9 张表、收件 → 加工两段流程、AI 图片识别只产草稿、1-3-7-30 弹性复习、A4 打印。194 个用例全绿。
+> `main` 是已交付的 v2：六页界面、9 张表、收件 → 加工两段流程、AI 图片识别只产草稿、1-3-7-30 弹性复习、A4 打印。201 个用例全绿。
 > 界面靶子见 [静态视觉稿](docs/design/ui-preview.html)，需求与验收口径见 [PRD](docs/requirements/PRD.md)，逐项实测数字见 [B1–B12 验收报告](docs/audits/2026-11-04-v2-acceptance.md)，本版改动见 [发布说明](docs/releases/2026-11-04-v2.md)。
 
 ---
@@ -88,7 +88,7 @@ node scripts/backup.mjs --restore <备份目录>  # 单独校验某个备份
 | --- | --- |
 | `npm run dev` | 本机起服务，8080 端口，启动时自动建库/迁移 |
 | `npm test` | 全量测试（`node:test`） |
-| `npm run check` | 语法检查 + UI 规范 + Issue 映射 + 文档链接、索引与数字一致性静态检查 |
+| `npm run check` | 语法检查 + UI 规范 + Issue 映射 + 视觉一致性判定 + 文档链接、索引与数字一致性静态检查 |
 | `npm run migrate:v2` | 已有 v1 库显式升级（先备份、后比对计数） |
 | `npm run import:legacy` | 只读导入旧库（幂等） |
 | `npm run backup` | 备份 + 恢复演练 |
@@ -112,8 +112,8 @@ docker compose up -d --build
 
 | 检查 | 结果 |
 | --- | --- |
-| `npm test` | 194 个用例全绿、0 失败（含文档静态检查、设计改版守护等分组用例）；v1 的 28 个测试一个未改 |
-| `npm run check` | 语法全通过；UI 静态违规 0（`html=6 css=5 js=10`）；Issue 映射 32 个编号齐全；文档链接与索引 PASS；文档里的数字与实际一致 |
+| `npm test` | 201 个用例全绿、0 失败（含文档静态检查、设计改版守护等分组用例）；v1 的 28 个测试一个未改 |
+| `npm run check` | 语法全通过；UI 静态违规 0（`html=6 css=5 js=10`）；Issue 映射 32 个编号齐全；视觉一致性机器判定 92/92 项通过（9 组）；文档链接与索引 PASS；文档里的数字与实际一致 |
 | `node scripts/acceptance.mjs` | B1–B12：11 PASS / 0 FAIL / 1 待判断，退出码 0 |
 | 六页可达 | 六处路由 `200/200/200/200/200/200`，`data-page` 6/6 |
 | 一图三题 | 假 provider 生成 3 条草稿，确认 2 条 → `mistakes 0→2`，未确认的第 1 条仍 pending |
