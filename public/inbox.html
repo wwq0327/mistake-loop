@@ -35,6 +35,37 @@
           <label for="page-q">在本页查找</label>
           <input id="page-q" class="input" type="search" placeholder="输入关键词，过滤本页内容">
         </div>
+
+        <section id="inbox-workspace" class="split">
+          <div class="split__pane split__pane--figure">
+            <section id="inbox-upload" class="card">
+              <div class="card__head"><h2>收一张照片</h2></div>
+              <div class="card__body">
+                <div class="field">
+                  <label for="inbox-file">拍照或选择题目照片</label>
+                  <input id="inbox-file" class="input" type="file" accept="image/*" capture="environment">
+                </div>
+                <p class="field__hint">原图始终留在本机；只有开启 AI 后才会把压缩图发往你配置的服务商。</p>
+                <div id="inbox-job-picker" class="row"></div>
+              </div>
+            </section>
+            <section id="inbox-figure" class="card">
+              <div class="card__head"><h2>原图与识别框</h2><span class="small muted">点框定位到对应草稿</span></div>
+              <div class="card__body">
+                <div id="inbox-image-wrap">
+                  <img id="inbox-image" alt="题目原图，尚未选择照片">
+                  <div id="inbox-bboxes"></div>
+                </div>
+              </div>
+            </section>
+          </div>
+          <div id="inbox-drafts" class="split__pane stack"></div>
+        </section>
+
+        <div id="inbox-fallback" class="alert alert--warn">
+          AI 没读懂、没启用或识别失败时，原图仍在这里。用下面这张空白草稿改为手工录入，功能完全等价。
+          <button id="inbox-manual" class="btn btn--ghost" type="button">改为手工录入</button>
+        </div>
         <div id="view" class="stack" aria-live="polite"></div>
       </div>
     </main>

@@ -239,3 +239,14 @@
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+
+/* ---------- 收件箱：原图与识别框叠层 ---------- */
+#inbox-image-wrap { position: relative; width: 100%; line-height: 0; }
+#inbox-image-wrap img { display: block; width: 100%; height: auto; }
+#inbox-bboxes { position: absolute; inset: 0; line-height: var(--line-body); }
+#inbox-bboxes .bbox { cursor: pointer; pointer-events: auto; }
+#inbox-bboxes .bbox:hover { border-color: var(--color-primary); }
+#inbox-drafts .card { outline: none; }
+#inbox-drafts .card.is-focused { box-shadow: var(--shadow-2); border-color: var(--color-primary); }
+#inbox-drafts .field-row > .field { min-width: 140px; }
+.draft-result { font-size: var(--font-2); color: var(--color-teal); }

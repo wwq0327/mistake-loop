@@ -1,0 +1,55 @@
+// #18 / #19 测试先行：识别收件箱的左图右表核对与逐题确认交互。
+// 浏览器交互无法在 Node 里跑 DOM，故用静态 DOM + 源码契约断言，配合 API 侧真实链路测试。
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync, existsSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const here = dirname(fileURLToPath(import.meta.url));
+const root = join(here, '..');
+const html = readFileSync(join(root, 'public', 'inbox.html'), 'utf8');
+const js = () => (existsSync(join(root, 'public', 'js', 'pages', 'inbox.js'))
+  ? readFileSync(join(root, 'public', 'js', 'pages', 'inbox.js'), 'utf8') : '');
+
+test('#18 收件箱静态骨架含图区、识别框叠层、草稿表单、降级入口与上传控件', () => {
+  for (const id of ['inbox-upload', 'inbox-figure', 'inbox-bboxes', 'inbox-drafts', 'inbox-fallback']) {
+    assert.ok(html.includes(`id="${id}"`), `inbox.html 缺 #${id}`);
+  }
+  assert.match(html, /<label\s+for="inbox-file"/, '上传控件缺 label');
+  assert.match(html, /<img\b/, '图区没有 img 元素');
+});
+
+test('#18 原图带相对坐标识别框，点框定位对应草稿', () => {
+  const source = js();
+  assert.ok(source, 'inbox.js 不存在');
+  assert.match(source, /\.bbox\b/, '缺识别框组件类');
+  assert.match(source, /style\.left|style\.top|style\.width|style\.height/, '识别框未按相对坐标定位');
+  assert.match(source, /%/, '识别框未用百分比相对坐标');
+  assert.match(source, /scrollIntoView|focus\(/, '点框未定位到对应草稿');
+});
+
+test('#18 低置信度字段留空并标「请手填」，不预填猜测值', () => {
+  const source = js();
+  assert.match(source, /confidence--low/, '缺低置信度视觉标记');
+  assert.match(source, /请手填/, '缺「请手填」提示文案');
+  assert.match(source, /uncertain/, '未按 uncertain 字段判定');
+  assert.match(source, /value\s*=\s*''/, '低置信度字段没有留空');
+});
+
+test('#18 可裁剪单题重识别、删除与合并草稿；失败有手工录入入口', () => {
+  const source = js();
+  for (const name of ['cropAndRetry', 'discardDraft', 'mergeDrafts']) {
+    assert.match(source, new RegExp(`\\b${name}\\b`), `缺交互函数 ${name}`);
+  }
+  assert.match(source, /改为手工录入|手工录入/, '缺降级入口文案');
+  assert.match(source, /\/api\/recognitions/, '未引用识别上传接口');
+  assert.match(source, /\/api\/recognition-drafts\//, '未引用草稿接口');
+});
+
+test('#18 页面仍遵守 UI 静态规范（无硬编码色值、无 innerHTML 赋值）', () => {
+  const source = js();
+  assert.doesNotMatch(source, /#[0-9a-fA-F]{3,8}\b/, 'JS 内出现硬编码色值');
+  assert.doesNotMatch(source, /\.innerHTML\s*=/, '出现不安全的 DOM 写入');
+  assert.match(html, /data-page="inbox"/);
+});
