@@ -74,6 +74,7 @@ export async function mount({ root, api, state }) {
   const manualButton = document.getElementById('inbox-manual');
   let jobs = [];
   let currentId = null;
+  const inFlight = new Set();
 
   root.replaceChildren(alert(state.aiEnabled
     ? 'AI 识别已开启。识别结果只写进草稿，逐题确认后才成为错题。'
@@ -138,6 +139,13 @@ export async function mount({ root, api, state }) {
   }
 
   async function commitDraft(draft, box, resultBox) {
+    if (inFlight.has(draft.id)) {
+      notify('这道题正在提交，请稍候，不会重复入库。', 'warn');
+      return;
+    }
+    inFlight.add(draft.id);
+    const buttons = [...box.querySelectorAll('button')];
+    for (const control of buttons) control.disabled = true;
     try {
       const edits = collectEdits(box, draft);
       await api(`/api/recognition-drafts/${draft.id}`, { method: 'PATCH', body: edits });
@@ -149,7 +157,24 @@ export async function mount({ root, api, state }) {
       notify(`第 ${result.mistakeId} 题已入库，状态为待诊断。`);
     } catch (error) {
       resultBox.replaceChildren(el('span', 'field__error', `${error.message}（可修改后重试）`));
-      notify(`确认失败：${error.message}`, 'error');
+      notify(`确认失败：${error.message}，按钮已恢复，可重试。`, 'error');
+    } finally {
+      inFlight.delete(draft.id);
+      for (const control of buttons) control.disabled = false;
+    }
+  }
+
+  async function retryFailed(ids) {
+    if (!ids.length) return;
+    try {
+      const result = await api('/api/recognition-drafts/batch-commit', { method: 'POST', body: { ids } });
+      const stillFailed = result.results.filter((item) => !item.ok);
+      notify(stillFailed.length
+        ? `重试后新入库 ${result.committed} 题，仍有 ${stillFailed.length} 题需补充信息。`
+        : `重试完成，新入库 ${result.committed} 题。`);
+      await refresh();
+    } catch (error) {
+      notify(`重试失败：${error.message}，可逐题再试。`, 'error');
     }
   }
 
@@ -308,6 +333,12 @@ export async function mount({ root, api, state }) {
       notify(failed.length
         ? `已入库 ${result.committed} 题，${failed.length} 题需补充信息后重试。`
         : `已入库 ${result.committed} 题。`);
+      if (failed.length) {
+        const failedIds = failed.map((item) => item.id);
+        root.append(button(`重试未成功的 ${failed.length} 题`, {
+          variant: 'ghost', onClick: () => retryFailed(failedIds),
+        }));
+      }
       await refresh();
     } catch (error) {
       notify(`批量确认失败：${error.message}，可逐题重试。`, 'error');
