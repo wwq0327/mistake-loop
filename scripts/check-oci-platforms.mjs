@@ -21,8 +21,11 @@ export function readOciPlatforms(tarPath) {
     // index.json 可能一层套一层（多平台导出常带嵌套 index），逐层往下走。
     const walk = (index) => {
       for (const m of index?.manifests ?? []) {
-        if (m.platform?.os && m.platform?.architecture) {
-          platforms.add(`${m.platform.os}/${m.platform.architecture}`);
+        const os = m.platform?.os;
+        const arch = m.platform?.architecture;
+        // buildx 的 attestation manifest 平台写作 unknown/unknown，不算一种架构。
+        if (os && arch && os !== 'unknown' && arch !== 'unknown') {
+          platforms.add(`${os}/${arch}`);
         }
         const digest = String(m.digest ?? '');
         if (!digest.startsWith('sha256:') || seen.has(digest)) continue;

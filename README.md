@@ -115,6 +115,7 @@ docker compose up -d --build
 | `npm test` | 208 个用例全绿、0 失败（含文档静态检查、设计改版守护等分组用例）；v1 的 28 个测试一个未改 |
 | `npm run check` | 语法全通过；UI 静态违规 0（`html=6 css=5 js=10`）；Issue 映射 32 个编号齐全；视觉一致性机器判定 92/92 项通过（9 组）；文档链接与索引 PASS；文档里的数字与实际一致 |
 | `node scripts/acceptance.mjs` | B1–B12：11 PASS / 0 FAIL / 1 待判断，退出码 0 |
+| 容器构建 | CI run 41860460740：多架构产物含 `linux/amd64` 与 `linux/arm64`；两个架构各真跑一次容器（非 root 用户 `node`、挂载 `/data`），`/health` 回读 `{"ok":true,"db":"ok"}`；只 build 不 push |
 | 六页可达 | 六处路由 `200/200/200/200/200/200`，`data-page` 6/6 |
 | 一图三题 | 假 provider 生成 3 条草稿，确认 2 条 → `mistakes 0→2`，未确认的第 1 条仍 pending |
 | 审核闸门 | 重复确认 `idempotent=true`；未确认草稿在题库 / 今日复习 / 打印 / 统计中出现均为 `false` |
