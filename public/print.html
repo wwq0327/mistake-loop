@@ -36,6 +36,29 @@
           <label for="page-q">在本页查找</label>
           <input id="page-q" class="input" type="search" placeholder="输入关键词，过滤本页内容">
         </div>
+
+        <section id="print-picker" class="card">
+          <div class="card__head">
+            <h2>选题</h2>
+            <span class="small muted">默认已带今日复习；勾选可加、取消可减，当前 <strong id="print-selected-count">0</strong> 道</span>
+          </div>
+          <div class="card__body">
+            <div class="field">
+              <label for="print-q">在候选题里找</label>
+              <input id="print-q" class="input" type="search" placeholder="输入题干或单元关键词">
+            </div>
+            <div id="print-actions" class="row"></div>
+            <div id="print-candidates" class="stack"></div>
+          </div>
+        </section>
+
+        <section id="print-preview" class="card">
+          <div class="card__head">
+            <h2 id="print-preview-title">A4 预览</h2>
+            <span class="small muted">打印出来的就是这一块</span>
+          </div>
+          <div class="card__body" id="print-preview-body"></div>
+        </section>
         <div id="view" class="stack" aria-live="polite"></div>
       </div>
     </main>

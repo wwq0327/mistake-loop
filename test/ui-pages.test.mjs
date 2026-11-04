@@ -117,3 +117,70 @@ test('工作台数字全部来自实时接口，复习动作含做对/做错与�
   assert.match(source, /evidence_type/, '缺掌握证据入口');
   assert.match(source, /next_review|overdue_days/, '未按到期日排序展示');
 });
+
+// #22 测试先行：打印页默认带今日复习、可增删、预览与出纸同源、学生版字段白名单。
+// 红灯预期：print.html 缺选题池/预览区，print.js 未导出学生版字段投影函数。
+test('#22 打印页含选题池、已选计数、出纸动作区与 A4 预览区骨架', () => {
+  const page = read('public/print.html');
+  assert.ok(page, 'print.html 不存在');
+  for (const id of ['print-candidates', 'print-preview', 'print-selected-count', 'print-actions']) {
+    assert.ok(page.includes(`id="${id}"`), `print.html 缺 #${id}`);
+  }
+  assert.ok(page.includes('print.css'), 'print.html 未引用 A4 出纸样式');
+  assert.match(page, /<label\s+for="print-q"/, '选题池缺带 for 的检索 label');
+});
+
+test('#22 默认选题来自今日复习接口，增删都改同一份选中集合', () => {
+  const source = read('public/js/pages/print.js');
+  assert.ok(source, 'print.js 不存在');
+  assert.match(source, /\/api\/reviews\/today/, '默认选题未取今日复习');
+  assert.match(source, /\/api\/mistakes/, '缺可增删的候选题池');
+  assert.match(source, /\/api\/print/, '未取学生版题卡');
+  assert.match(source, /\bselected\b/, '缺统一选中集合');
+  assert.match(source, /\.add\(|\.delete\(/, '缺增删动作');
+  assert.match(source, /window\.print\s*\(/, '缺出纸动作');
+});
+
+test('#22 预览与出纸共用一次题卡请求，出纸不再二次取数', () => {
+  const source = read('public/js/pages/print.js');
+  assert.match(source, /\brenderPreview\b/, '缺单一渲染入口');
+  assert.match(source, /\bsheetData\b/, '缺题卡数据快照');
+  const body = source.match(/function printSheet\([^)]*\)\s*\{[^}]*\}/);
+  assert.ok(body, '缺打印动作函数');
+  assert.doesNotMatch(body[0], /await api\(|fetch\(/, '出纸时重新取数，预览与出纸可能不一致');
+});
+
+test('#22 学生版字段白名单：答案、学生作答、诊断与引导提示一律不进卡片', async () => {
+  const mod = await import('../public/js/pages/print.js');
+  assert.equal(typeof mod.pickStudentFields, 'function', '缺学生版字段投影函数');
+  const dirty = {
+    id: 7, subject: 'math', subject_label: '数学', unit_title: '第一单元',
+    prompt: '计算 12×3', image_path: 'images/a.png', geometry_svg: '<svg></svg>',
+    variants: [{ level: 'surface', prompt: '变式题干', correct_answer: '秘密答案' }],
+    correct_answer: '36', student_answer: '35', diagnosis_note: '进位错了',
+    error_reason: '粗心', scaffold_hint: '先算 10×3', student_conclusion: '要先拆',
+    mastery_evidence: '会了', status: 'reviewing',
+  };
+  const clean = mod.pickStudentFields(dirty);
+  const flat = JSON.stringify(clean);
+  for (const key of [
+    'correct_answer', 'student_answer', 'diagnosis_note', 'error_reason',
+    'scaffold_hint', 'student_conclusion', 'mastery_evidence', 'status',
+  ]) {
+    assert.ok(!(key in clean), `学生版仍含字段 ${key}`);
+  }
+  for (const secret of ['36', '35', '进位错了', '粗心', '先算 10×3', '要先拆', '会了', '秘密答案']) {
+    assert.ok(!flat.includes(secret), `学生版泄漏内容：${secret}`);
+  }
+  assert.equal(clean.prompt, '计算 12×3');
+  assert.equal(clean.variants.length, 1);
+  assert.deepEqual(Object.keys(clean.variants[0]), ['level', 'prompt'], '变式只保留层级与题干');
+});
+
+test('#22 A4 卡片不跨页断题', () => {
+  const css = read('public/css/print.css');
+  assert.ok(css, 'print.css 不存在');
+  assert.match(css, /@page\s*\{\s*size:\s*A4/, '缺 A4 页面尺寸');
+  assert.match(css, /break-inside:\s*avoid/, '缺不跨页断题规则');
+  assert.match(css, /page-break-inside:\s*avoid/, '缺旧浏览器兼容规则');
+});

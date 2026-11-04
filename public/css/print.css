@@ -31,4 +31,10 @@
   .qcard__line { min-height: var(--space-6); }
   .card__head { border-bottom: 1px solid var(--color-line); }
   .tag { border: 1px solid var(--color-line); }
+
+  /* 出纸只留预览区：屏幕上渲染的那份 sheetData，就是纸上的全部内容。 */
+  .topbar, .sidebar, .tabbar, .page-head, .field, #print-picker, #view, #toast-host { display: none !important; }
+  #print-preview { border: 0; box-shadow: var(--shadow-0); }
+  #print-preview .card__head { display: none; }
+  .shell, .main, .content { display: block; margin: 0; padding: 0; max-width: none; }
 }
