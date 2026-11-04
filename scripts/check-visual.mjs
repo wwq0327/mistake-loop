@@ -145,7 +145,7 @@ export function checkVisual(root = DEFAULT_ROOT) {
       }
       const tokenValue = tokenVars.get(name);
       if (normalize(value) !== normalize(tokenValue)) {
-        list.push(`--${name} 色值不一致：靶子是 ${value}，${TOKENS} 是 ${tokenValue}`);
+        list.push(`${name} 色值不一致：靶子是 ${value}，${TOKENS} 是 ${tokenValue}`);
       }
     }
     add('palette', '靶子色板与 tokens 同名变量逐个相等', { errors: list, total: Math.max(targetVars.size, 1) });
@@ -305,7 +305,10 @@ export function checkVisual(root = DEFAULT_ROOT) {
 
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1]);
 if (isMain) {
-  const out = checkVisual();
+  // 用法：node scripts/check-visual.mjs [--root <dir>]，默认检查仓库根目录。
+  const at = process.argv.indexOf('--root');
+  const root = at >= 0 && process.argv[at + 1] ? process.argv[at + 1] : DEFAULT_ROOT;
+  const out = checkVisual(root);
   if (out.ok) {
     console.log(`visual-check: PASS (${out.passed}/${out.total} 项判定通过，${out.checks.length} 组)`);
   } else {
