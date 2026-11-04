@@ -57,6 +57,19 @@ test('#33 草稿可拆成另一题：按题干选区拆分，有选区校验', (
   assert.match(source, /选中/, '缺选区校验提示');
 });
 
+test('#34 识别框可拖动可删除、草稿可新增', () => {
+  const source = js();
+  assert.match(source, /pointerdown/, '缺拖动开始处理');
+  assert.match(source, /pointermove/, '缺拖动过程处理');
+  assert.match(source, /pointerup/, '缺拖动结束处理');
+  assert.match(source, /is-dragging/, '拖动时没有视觉反馈');
+  assert.match(source, /bbox__handle/, '缺拖动把手');
+  assert.match(source, /bbox__remove/, '识别框上没有删除入口');
+  assert.match(source, /addDraft/, '缺新增草稿的交互函数');
+  assert.match(source, /新增一条草稿/, '缺「新增一条草稿」入口文案');
+  assert.match(source, /['`]\/api\/recognition-drafts['`]\s*,\s*\{[^}]*method:\s*'POST'/, '新增草稿没有走 POST 接口');
+});
+
 test('#18 页面仍遵守 UI 静态规范（无硬编码色值、无 innerHTML 赋值）', () => {
   const source = js();
   assert.doesNotMatch(source, /#[0-9a-fA-F]{3,8}\b/, 'JS 内出现硬编码色值');

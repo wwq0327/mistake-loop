@@ -263,6 +263,23 @@ export function createRecognitionsRouter({ db, dataDir, worker = null, aiStatus 
     res.json({ draft: publicDraft(db.prepare('SELECT * FROM recognition_drafts WHERE id = ?').get(id)) });
   });
 
+  // 新增一条空白草稿：老师手写一道题，不必等 AI 识别。
+  // 刻意不带任何 AI 痕迹——没有置信度、没有 uncertain 标记、没有框，
+  // 免得让老师误以为这是机器起草的内容。
+  router.post('/recognition-drafts', (req, res) => {
+    const jobId = Number(req.body?.jobId);
+    if (!Number.isInteger(jobId) || jobId <= 0) {
+      throw new ValidationError('先上传一张照片，再新增草稿', 'JOB_REQUIRED');
+    }
+    const job = db.prepare('SELECT id FROM recognition_jobs WHERE id = ?').get(jobId);
+    if (!job) notFound('照片不存在');
+    const max = db.prepare('SELECT MAX(seq) m FROM recognition_drafts WHERE job_id = ?').get(jobId).m ?? 0;
+    const info = db.prepare(`INSERT INTO recognition_drafts
+      (job_id, seq, bbox, subject, prompt, status, created_at)
+      VALUES (?, ?, NULL, NULL, '', 'pending', ?)`).run(jobId, max + 1, nowIso());
+    res.status(201).json({ draft: publicDraft(db.prepare('SELECT * FROM recognition_drafts WHERE id = ?').get(Number(info.lastInsertRowid))) });
+  });
+
   router.delete('/recognition-drafts/:id', (req, res) => {
     const id = checkId(req.params.id);
     const row = db.prepare('SELECT * FROM recognition_drafts WHERE id = ?').get(id);

@@ -195,6 +195,26 @@ export async function mount({ root, api, state }) {
     }
   }
 
+  // 新增一条空白草稿：老师手写一道题，不必等 AI 识别。
+  async function addDraft() {
+    if (!currentId) {
+      notify('先上传一张照片，再新增草稿。', 'warn');
+      return;
+    }
+    try {
+      const result = await api('/api/recognition-drafts', { method: 'POST', body: { jobId: currentId } });
+      notify('已新增一条空白草稿，填完照常确认入库。');
+      await refresh();
+      const target = document.getElementById(`draft-${result.draft.id}`);
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        target.focus();
+      }
+    } catch (error) {
+      notify(`新增失败：${error.message}`, 'error');
+    }
+  }
+
   async function retryFailed(ids) {
     if (!ids.length) return;
     try {
@@ -265,6 +285,53 @@ export async function mount({ root, api, state }) {
   let drafts = [];
   const currentDrafts = () => drafts;
 
+  // 识别框可拖动：按住框拖动即可改它的位置，松手才写回一次。
+  // 只平移不改大小——老师要修正的是「框歪了」，不是「框画小了」。
+  function startDrag(event, draft, box) {
+    const rect = bboxes.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const [x1, y1, x2, y2] = draft.bbox;
+    const w = x2 - x1;
+    const h = y2 - y1;
+    const startX = event.clientX;
+    const startY = event.clientY;
+    let next = [x1, y1, x2, y2];
+
+    const paint = () => {
+      box.style.left = `${next[0] * 100}%`;
+      box.style.top = `${next[1] * 100}%`;
+      box.style.width = `${(next[2] - next[0]) * 100}%`;
+      box.style.height = `${(next[3] - next[1]) * 100}%`;
+    };
+
+    const onMove = (moveEvent) => {
+      const dx = (moveEvent.clientX - startX) / rect.width;
+      const dy = (moveEvent.clientY - startY) / rect.height;
+      // 夹紧在 0–1 内，保证 x2>x1、y2>y1 恒成立，不会拖出非法框。
+      const nx = Math.min(Math.max(0, x1 + dx), 1 - w);
+      const ny = Math.min(Math.max(0, y1 + dy), 1 - h);
+      next = [nx, ny, nx + w, ny + h];
+      paint();
+    };
+    const onUp = async () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      box.classList.remove('is-dragging');
+      const moved = next.some((value, index) => value !== draft.bbox[index]);
+      if (!moved) return;
+      try {
+        await api(`/api/recognition-drafts/${draft.id}`, { method: 'PATCH', body: { bbox: next } });
+        draft.bbox = next;
+        notify('识别框已挪到新位置。');
+      } catch (error) {
+        notify(`挪框没成功：${error.message}`, 'error');
+        paint();
+      }
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  }
+
   function renderBboxes(items) {
     bboxes.replaceChildren();
     for (const draft of items) {
@@ -284,6 +351,21 @@ export async function mount({ root, api, state }) {
         for (const other of draftsBox.querySelectorAll('.card')) other.classList.remove('is-focused');
         target.classList.add('is-focused');
       });
+      // 框上的删除入口：AI 画错了框，删掉它（连同这条草稿）。
+      const remove = button('×', { variant: 'danger', onClick: () => discardDraft(draft) });
+      remove.classList.add('bbox__remove');
+      remove.setAttribute('aria-label', `删除第 ${draft.seq} 题的识别框与草稿`);
+      box.append(remove);
+      // 拖动把手：只有把手能拖，避免和「点框定位草稿」打架。
+      const handle = el('span', 'bbox__handle');
+      handle.setAttribute('aria-hidden', 'true');
+      handle.addEventListener('pointerdown', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        box.classList.add('is-dragging');
+        startDrag(event, draft, box);
+      });
+      box.append(handle);
       bboxes.append(box);
     }
   }
@@ -352,6 +434,7 @@ export async function mount({ root, api, state }) {
     const head = el('div', 'row');
     head.append(el('h2', '', `待核对 ${drafts.filter((d) => d.status === 'pending').length} 题`));
     head.append(button('全部确认', { variant: 'primary', onClick: batchCommit }));
+    head.append(button('新增一条草稿', { variant: 'ghost', onClick: addDraft }));
     draftsBox.append(head);
     for (const draft of drafts) draftsBox.append(renderDraft(draft));
   }
