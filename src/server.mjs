@@ -4,7 +4,7 @@ import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openDb, migrate, closeDb } from './db.mjs';
 import { startScheduler } from './scheduler.mjs';
-import { nowIso } from './lib/dates.mjs';
+import { nowIso, today } from './lib/dates.mjs';
 import { createMetaRouter } from './routes/meta.mjs';
 import { createMistakesRouter } from './routes/mistakes.mjs';
 import { createVariantsRouter } from './routes/variants.mjs';
@@ -17,7 +17,7 @@ import { createJobWorker } from './ai/jobs.mjs';
 const here = dirname(fileURLToPath(import.meta.url));
 const publicDir = join(here, '..', 'public');
 
-export function createApp({ db, dataDir, schedulerState = { running: false, lastRunAt: null, lastResult: null }, recognitionWorker = null }) {
+export function createApp({ db, dataDir, schedulerState = { running: false, lastRunAt: null, lastResult: null }, recognitionWorker = null, aiStatus = null }) {
   const app = express();
   app.disable('x-powered-by');
   app.use(express.json({ limit: '25mb' }));
@@ -37,7 +37,7 @@ export function createApp({ db, dataDir, schedulerState = { running: false, last
   app.use('/api', createVariantsRouter({ db }));
   app.use('/api', createReviewsRouter({ db }));
   app.use('/api', createPrintRouter({ db }));
-  app.use('/api', createRecognitionsRouter({ db, dataDir, worker: recognitionWorker }));
+  app.use('/api', createRecognitionsRouter({ db, dataDir, worker: recognitionWorker, aiStatus }));
 
   // 六页信息架构：路径按动作命名，静态文件名只作载体。
   const pageRoutes = [
@@ -87,7 +87,17 @@ if (isMain) {
     options: { dailyLimit: aiProvider.config.dailyLimit },
   });
   recognitionWorker.start();
-  const app = createApp({ db, dataDir, schedulerState: scheduler.state, recognitionWorker });
+  const aiStatus = () => {
+    const startIso = new Date(`${today()}T00:00:00+08:00`).toISOString();
+    return {
+      enabled: aiProvider.isEnabled,
+      todayUsed: db.prepare('SELECT COUNT(*) c FROM recognition_jobs WHERE attempts > 0 AND created_at >= ?').get(startIso).c,
+      dailyLimit: aiProvider.config.dailyLimit,
+      lastError: recognitionWorker.state.lastError,
+      pendingDrafts: db.prepare("SELECT COUNT(*) c FROM recognition_drafts WHERE status = 'pending'").get().c,
+    };
+  };
+  const app = createApp({ db, dataDir, schedulerState: scheduler.state, recognitionWorker, aiStatus });
   const port = Number(process.env.PORT || 8080);
   const server = app.listen(port, () => {
     console.log(`[mistake-loop] http://0.0.0.0:${port} | ${new Date().toISOString()}`);

@@ -5,8 +5,9 @@ import { saveRecognitionPair } from '../lib/images.mjs';
 import { withTransaction } from '../db.mjs';
 import { EDITIONS } from '../lib/subjects.mjs';
 import { SUBJECTS } from '../state-machine.mjs';
+import { ensureManualDraft } from '../ai/jobs.mjs';
 import { checkId, checkText, checkSubject, notFound, conflict, ValidationError } from '../lib/validation.mjs';
-import { nowIso } from '../lib/dates.mjs';
+import { nowIso, today } from '../lib/dates.mjs';
 
 const TEXT_FIELDS = {
   prompt: 2000,
@@ -120,7 +121,19 @@ function commitDraft(db, id, overrides = {}) {
   return { idempotent: false, mistakeId, status: 201 };
 }
 
-export function createRecognitionsRouter({ db, dataDir, worker = null }) {
+// 状态接口只回非敏感聚合数据；密钥、端点、模型名、上游响应一概不出服务端。
+function fallbackAiStatus(db, worker) {
+  const startIso = new Date(`${today()}T00:00:00+08:00`).toISOString();
+  return {
+    enabled: Boolean(worker?.aiEnabled),
+    todayUsed: db.prepare('SELECT COUNT(*) c FROM recognition_jobs WHERE attempts > 0 AND created_at >= ?').get(startIso).c,
+    dailyLimit: 30,
+    lastError: worker?.state?.lastError ?? null,
+    pendingDrafts: db.prepare("SELECT COUNT(*) c FROM recognition_drafts WHERE status = 'pending'").get().c,
+  };
+}
+
+export function createRecognitionsRouter({ db, dataDir, worker = null, aiStatus = null }) {
   const router = Router();
 
   router.post('/recognitions', (req, res) => {
@@ -131,6 +144,8 @@ export function createRecognitionsRouter({ db, dataDir, worker = null }) {
     const jobId = Number(info.lastInsertRowid);
     // hint 是保留字段位：第一版提示词固定，老师补充语不落库、不进上游请求。
     void hint;
+    // AI 未启用（或未注入 worker）时立即给一张可手填的空白草稿，功能等价。
+    if (!worker || worker.aiEnabled === false) ensureManualDraft(db, jobId, nowIso());
     // 长连接不等识别结果：返回 202，worker 自己扫 queued。
     if (worker) setImmediate(() => void worker.drain());
     res.status(202).json({ jobId, status: 'queued', imagePath: pair.originalPath });
@@ -226,6 +241,10 @@ export function createRecognitionsRouter({ db, dataDir, worker = null }) {
       idempotent: result.idempotent,
       status: 'new',
     });
+  });
+
+  router.get('/ai/status', (req, res) => {
+    res.json(aiStatus ? aiStatus() : fallbackAiStatus(db, worker));
   });
 
   return router;

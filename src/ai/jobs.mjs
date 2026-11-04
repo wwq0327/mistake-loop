@@ -12,6 +12,16 @@ export function backoffDelay(attempt, baseMs = 1000) {
   return baseMs * (2 ** Math.max(0, attempt - 1));
 }
 
+// 任何失败都不丢原图，也给老师留一条可手填的空白草稿：纯手工路径永远等价可用。
+export function ensureManualDraft(db, jobId, nowIso = new Date().toISOString()) {
+  const existing = db.prepare("SELECT COUNT(*) c FROM recognition_drafts WHERE job_id = ? AND status = 'pending'").get(jobId).c;
+  if (existing > 0) return null;
+  const seq = db.prepare('SELECT COALESCE(MAX(seq), 0) + 1 s FROM recognition_drafts WHERE job_id = ?').get(jobId).s;
+  const info = db.prepare("INSERT INTO recognition_drafts (job_id, seq, prompt, status, created_at) VALUES (?, ?, '', 'pending', ?)")
+    .run(jobId, seq, nowIso);
+  return Number(info.lastInsertRowid);
+}
+
 function dayStartIso(nowIso) {
   const shifted = new Date(new Date(nowIso).getTime() + 8 * 3600 * 1000).toISOString().slice(0, 10);
   return new Date(`${shifted}T00:00:00+08:00`).toISOString();
@@ -63,6 +73,7 @@ export function createJobWorker({ db, provider, dataDir = null, options = {} } =
   function markFailed(job, code, { attempts } = {}) {
     db.prepare('UPDATE recognition_jobs SET status = ?, error_code = ?, finished_at = ?, attempts = ? WHERE id = ?')
       .run('failed', code, config.now(), attempts ?? job.attempts, job.id);
+    ensureManualDraft(db, job.id, config.now());
   }
 
   function writeDrafts(job, result, status) {
@@ -144,8 +155,13 @@ export function createJobWorker({ db, provider, dataDir = null, options = {} } =
 
   async function drain() {
     if (state.running || state.stopped) return;
-    // 未启用时零调用、零状态改写：job 留在 queued，收件箱仍可手工填写草稿。
-    if (!provider.isEnabled) return;
+    // 未启用时零调用：job 留在 queued，给每个待办 job 补一条可手填的空白草稿。
+    if (!provider.isEnabled) {
+      for (const job of db.prepare("SELECT id FROM recognition_jobs WHERE status = 'queued'").all()) {
+        ensureManualDraft(db, job.id, config.now());
+      }
+      return;
+    }
     state.running = true;
     activePromise = (async () => {
       let guard = 0;
@@ -190,5 +206,5 @@ export function createJobWorker({ db, provider, dataDir = null, options = {} } =
     }
   }
 
-  return { start, stop, drain, processJob, state };
+  return { start, stop, drain, processJob, state, aiEnabled: Boolean(provider.isEnabled) };
 }
