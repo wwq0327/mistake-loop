@@ -1,4 +1,5 @@
 /* A4 出纸层：打印时一律浅色，卡片不跨页断题。
+   屏幕上的纸纹、朱红粗边、页眉规则线全部关掉，省墨且不干扰学生作答。
    颜色继承 tokens.css，不写死色值；屏幕端不加载（media="print"）。 */
 
 @page { size: A4; margin: 14mm; }
@@ -7,6 +8,7 @@
   :root {
     color-scheme: light;
     --color-primary: var(--print-primary);
+    --color-accent: var(--print-accent);
     --color-teal: var(--print-teal);
     --color-ink: var(--print-ink);
     --color-ink-2: var(--print-ink-2);
@@ -17,10 +19,14 @@
     --color-line-2: var(--print-line-2);
   }
 
-  body { background: var(--color-surface); color: var(--color-ink); font-size: var(--font-2); }
+  /* 出纸不印纸纹与账格背景，答题线仍由 .qcard__line 的真实 border 提供 */
+  body { background-image: none; background-color: var(--color-surface); color: var(--color-ink); font-size: var(--font-2); }
+  .empty, .qcard__lines { background-image: none; }
   .content { max-width: none; }
+  .content > * + * { margin-top: 0; }
   .qcard {
     border: 1px solid var(--color-line);
+    border-left: 1px solid var(--color-line);
     box-shadow: var(--shadow-0);
     break-inside: avoid;
     page-break-inside: avoid;
@@ -30,10 +36,12 @@
   .qcard__figure { max-height: 60mm; }
   .qcard__line { min-height: var(--space-6); }
   .card__head { border-bottom: 1px solid var(--color-line); }
+  .card__head::before { display: none; }
   .tag { border: 1px solid var(--color-line); }
 
-  /* 出纸只留预览区：屏幕上渲染的那份 sheetData，就是纸上的全部内容。 */
+  /* 出纸只留预览区：屏幕上渲染的那份 sheetData，就是纸上的全部内容 */
   .topbar, .sidebar, .tabbar, .page-head, .field, #print-picker, #view, #toast-host { display: none !important; }
+  .content::before { display: none !important; }
   #print-preview { border: 0; box-shadow: var(--shadow-0); }
   #print-preview .card__head { display: none; }
   .shell, .main, .content { display: block; margin: 0; padding: 0; max-width: none; }

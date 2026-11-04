@@ -1,4 +1,4 @@
-/* 基础层：重置、排版、可访问性。颜色一律引用 tokens.css，不写死色值。 */
+/* 基础层：重置、排版、纸面、可访问性。颜色一律引用 tokens.css，不写死色值。 */
 
 *, *::before, *::after { box-sizing: border-box; }
 
@@ -6,30 +6,47 @@ html { -webkit-text-size-adjust: 100%; }
 
 body {
   margin: 0;
-  background: var(--color-canvas);
+  background-color: var(--color-canvas);
+  background-image: var(--texture-paper);
+  background-size: var(--texture-size);
+  background-position: var(--texture-offset);
   color: var(--color-ink);
-  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-family: var(--font-body);
   font-size: var(--font-3);
   line-height: var(--line-body);
 }
 
-h1, h2, h3, h4 { margin: 0; line-height: var(--line-tight); letter-spacing: -.01em; }
+/* 活字标题：账簿的页名用衬线，字距略开，不用清一色 600 无衬线 */
+h1, h2, h3, h4 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 600;
+  line-height: var(--line-tight);
+  letter-spacing: .015em;
+}
 h1 { font-size: var(--font-6); }
 h2 { font-size: var(--font-5); }
 h3 { font-size: var(--font-4); }
 h4 { font-size: var(--font-3); }
 
 p { margin: 0 0 var(--space-3); }
-a { color: var(--color-primary); }
+a { color: var(--color-primary); text-underline-offset: 3px; }
 img { max-width: 100%; height: auto; }
 button, input, select, textarea { font: inherit; color: inherit; }
 
 :focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
 }
 
-::selection { background: var(--color-primary-soft); }
+/* 划选像红笔圈重点 */
+::selection { background: var(--color-accent); color: var(--color-surface); }
+
+/* 一次编排好的页面载入：纸页按序落桌，具体延迟由 layout.css 给 nth-child */
+@keyframes ledger-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 
 @media (prefers-color-scheme: dark) {
   :root { color-scheme: dark; }

@@ -1,27 +1,42 @@
-/* mistake-loop v2 设计令牌：全项目唯一允许出现色值与字号/间距数字的文件。
-   改一处，六页与打印页一起变。命名与 docs/design/ui-preview.html 色板一致。 */
+/* mistake-loop 设计令牌 · 批改账簿（Printer's Ledger）
+   全项目唯一允许出现色值、渐变、字体栈与字号/间距数字的文件。
+   概念：这不是 SaaS 仪表盘，是教师桌上一本摊开的错题账簿；朱红是唯一的强调色。
+   改一处，六页与打印页一起变；命名与 docs/design/ui-preview.html 色板一致。 */
 
 :root {
-  /* 颜色：主色 / 辅色 / 强调 / 语义 / 中性 */
-  --color-primary: #1c4e80;
-  --color-primary-2: #2d6ba8;
-  --color-primary-soft: #eaf2fa;
-  --color-teal: #0f8b8d;
-  --color-teal-soft: #e6f5f4;
-  --color-amber: #c1762a;
-  --color-amber-soft: #fdf2e4;
-  --color-danger: #b5453f;
-  --color-danger-soft: #fbeceb;
-  --color-ink: #16263a;
-  --color-ink-2: #33475f;
-  --color-muted: #5c6f86;
-  --color-faint: #8a9bb0;
-  --color-canvas: #f4f7fb;
-  --color-surface: #ffffff;
-  --color-line: #e3eaf2;
-  --color-line-2: #eef3f8;
-  --color-on-primary: #ffffff;
+  /* 纸与墨：底色暖纸、纸页偏白、书脊与正文近黑 */
+  --color-canvas: #f3eee3;
+  --color-surface: #fffdf7;
+  --color-spine: #22201c;
+  --color-on-spine: #e9e2d3;
+  --color-ink: #22201c;
+  --color-ink-2: #454039;
+  --color-muted: #6d685e;
+  --color-faint: #948d80;
+  --color-line: #d9d0bd;
+  --color-line-2: #e9e2d3;
+
+  /* 结构与批注：深墨蓝管结构，朱红只用于强调 */
+  --color-primary: #1f3a4d;
+  --color-primary-2: #34566b;
+  --color-primary-soft: #e4ebe9;
+  --color-accent: #b23a2e;
+  --color-accent-soft: #f6e7e2;
+  --color-on-primary: #fffdf7;
+
+  /* 语义色：状态标签仍「底色 + data-label 文字」双重标识 */
+  --color-teal: #3c6e6b;
+  --color-teal-soft: #e5efec;
+  --color-amber: #9a6a2f;
+  --color-amber-soft: #f6eddd;
+  --color-danger: #a8322a;
+  --color-danger-soft: #f6e5e2;
   --color-warning-text: #7a4e17;
+
+  /* 字体：标题与数字用衬线活字，中文正文用无衬线保小字号可读性。
+     全部是本机字体栈回退，不发外网、不引字体文件。 */
+  --font-display: "Iowan Old Style", "Baskerville", "Songti SC", "STSong", "Noto Serif CJK SC", "SimSun", Georgia, serif;
+  --font-body: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
 
   /* 字号七阶 */
   --font-1: 12px;
@@ -31,8 +46,8 @@
   --font-5: 22px;
   --font-6: 28px;
   --font-7: 36px;
-  --line-body: 1.6;
-  --line-tight: 1.2;
+  --line-body: 1.65;
+  --line-tight: 1.15;
 
   /* 间距七阶 */
   --space-1: 4px;
@@ -43,61 +58,85 @@
   --space-6: 32px;
   --space-7: 48px;
 
-  /* 圆角四档 */
-  --radius-1: 8px;
-  --radius-2: 12px;
-  --radius-3: 18px;
+  /* 圆角：方角纸页，只有状态标签保留胶囊 */
+  --radius-1: 2px;
+  --radius-2: 3px;
+  --radius-3: 4px;
   --radius-4: 999px;
 
-  /* 阴影四档 */
+  /* 投影：硬边 offset，模拟叠起来的纸，不要云朵阴影 */
   --shadow-0: none;
-  --shadow-1: 0 1px 2px rgba(22, 38, 58, .06);
-  --shadow-2: 0 4px 14px rgba(22, 38, 58, .08);
-  --shadow-3: 0 14px 38px rgba(22, 38, 58, .12);
+  --shadow-1: 2px 2px 0 rgba(34, 32, 28, .08);
+  --shadow-2: 4px 4px 0 rgba(34, 32, 28, .10);
+  --shadow-3: 8px 8px 0 rgba(34, 32, 28, .14);
+  --shadow-paper: 3px 3px 0 var(--color-line);
+
+  /* 肌理：极淡纸纹 + 账格横线，只在屏幕出现，打印层关闭 */
+  --texture-paper: radial-gradient(rgba(120, 100, 70, .055) .8px, transparent .8px),
+                   radial-gradient(rgba(120, 100, 70, .035) .8px, transparent .8px);
+  --texture-size: 7px 7px, 7px 7px;
+  --texture-offset: 0 0, 3.5px 3.5px;
+  --texture-rule: repeating-linear-gradient(to bottom,
+                   transparent 0, transparent 31px,
+                   rgba(120, 100, 70, .16) 31px, rgba(120, 100, 70, .16) 32px);
 
   /* 动效两档 */
   --motion-fast: 120ms;
-  --motion-normal: 200ms;
+  --motion-normal: 240ms;
 
-  /* 触控下限 */
+  /* 触控下限与阅读宽度 */
   --touch-min: 44px;
   --content-max: 1200px;
 
   /* 打印专用浅色：出纸不受系统深色影响，色值只在这一处定义 */
-  --print-primary: #1c4e80;
-  --print-teal: #0f8b8d;
-  --print-ink: #16263a;
-  --print-ink-2: #33475f;
-  --print-muted: #5c6f86;
+  --print-primary: #1f3a4d;
+  --print-accent: #b23a2e;
+  --print-teal: #3c6e6b;
+  --print-ink: #22201c;
+  --print-ink-2: #454039;
+  --print-muted: #6d685e;
   --print-surface: #ffffff;
-  --print-line: #e3eaf2;
-  --print-line-2: #eef3f8;
+  --print-line: #d9d0bd;
+  --print-line-2: #e9e2d3;
 }
 
-/* 深色跟随系统；打印页在 print.css 里强制覆盖回浅色。 */
+/* 夜灯下的账本：墨底纸字，朱红提亮，肌理更轻。 */
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-primary: #7fb0e0;
-    --color-primary-2: #9cc6ec;
-    --color-primary-soft: #1d3349;
-    --color-teal: #58c5c3;
-    --color-teal-soft: #173b3b;
-    --color-amber: #e2ab62;
-    --color-amber-soft: #3d3020;
-    --color-danger: #ef8f88;
-    --color-danger-soft: #3d2524;
-    --color-ink: #eaf1f9;
-    --color-ink-2: #c3d2e2;
-    --color-muted: #93a6bc;
-    --color-faint: #6f8299;
-    --color-canvas: #101a27;
-    --color-surface: #182537;
-    --color-line: #2a3b50;
-    --color-line-2: #223146;
-    --color-on-primary: #101a27;
-    --color-warning-text: #f0c48a;
-    --shadow-1: 0 1px 2px rgba(0, 0, 0, .3);
-    --shadow-2: 0 4px 14px rgba(0, 0, 0, .35);
-    --shadow-3: 0 14px 38px rgba(0, 0, 0, .45);
+    --color-canvas: #171816;
+    --color-surface: #212320;
+    --color-spine: #0f100f;
+    --color-on-spine: #cbc3b3;
+    --color-ink: #eee7d8;
+    --color-ink-2: #cbc3b3;
+    --color-muted: #a09889;
+    --color-faint: #777064;
+    --color-line: #3a382f;
+    --color-line-2: #2e2d27;
+
+    --color-primary: #a9c4d2;
+    --color-primary-2: #c3d8e3;
+    --color-primary-soft: #22323a;
+    --color-accent: #e0785f;
+    --color-accent-soft: #3a2420;
+    --color-on-primary: #171816;
+
+    --color-teal: #79b3ab;
+    --color-teal-soft: #1d3331;
+    --color-amber: #d8ab68;
+    --color-amber-soft: #352c1c;
+    --color-danger: #e98b7c;
+    --color-danger-soft: #3a2220;
+    --color-warning-text: #e8c08a;
+
+    --shadow-1: 2px 2px 0 rgba(0, 0, 0, .35);
+    --shadow-2: 4px 4px 0 rgba(0, 0, 0, .42);
+    --shadow-3: 8px 8px 0 rgba(0, 0, 0, .5);
+    --shadow-paper: 3px 3px 0 var(--color-line-2);
+    --texture-paper: radial-gradient(rgba(255, 245, 220, .025) .8px, transparent .8px),
+                     radial-gradient(rgba(255, 245, 220, .018) .8px, transparent .8px);
+    --texture-rule: repeating-linear-gradient(to bottom,
+                     transparent 0, transparent 31px,
+                     rgba(238, 231, 216, .09) 31px, rgba(238, 231, 216, .09) 32px);
   }
 }

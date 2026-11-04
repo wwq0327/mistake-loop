@@ -1,7 +1,8 @@
-/* 组件层：六个页面共用的一套零件。色值一律引用 tokens.css。
-   状态标签用「底色 + data-label 文字」双重标识，不靠颜色单独表意。 */
+/* 组件层：六个页面共用的一套零件，按「批改账簿」重做。
+   色值一律引用 tokens.css。状态标签用「底色 + data-label 文字」双重标识，不靠颜色单独表意。
+   屏幕纸页用硬边投影与账格；打印层会退回纯线条，见 print.css。 */
 
-/* ---------- 按钮 ---------- */
+/* ---------- 按钮：方角纸片，按下像盖了个章 ---------- */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -9,7 +10,7 @@
   gap: var(--space-2);
   min-height: var(--touch-min);
   padding: 0 var(--space-4);
-  border: 1px solid transparent;
+  border: 1px solid var(--color-line);
   border-radius: var(--radius-1);
   background: var(--color-surface);
   color: var(--color-ink);
@@ -18,48 +19,63 @@
   line-height: 1;
   cursor: pointer;
   text-decoration: none;
+  box-shadow: var(--shadow-1);
   transition: background var(--motion-fast), box-shadow var(--motion-fast), transform var(--motion-fast);
 }
-.btn:hover { box-shadow: var(--shadow-1); }
-.btn:active { transform: translateY(1px); }
-.btn:disabled { opacity: .55; cursor: not-allowed; box-shadow: var(--shadow-0); }
-.btn--primary { background: var(--color-primary); color: var(--color-on-primary); }
+.btn:hover { box-shadow: var(--shadow-paper); transform: translate(-1px, -1px); }
+.btn:active { transform: translate(2px, 2px); box-shadow: var(--shadow-0); }
+.btn:disabled { opacity: .55; cursor: not-allowed; box-shadow: var(--shadow-0); transform: none; }
+.btn--primary { background: var(--color-primary); color: var(--color-on-primary); border-color: var(--color-primary); }
+.btn--primary::before { content: ""; width: 3px; height: 1em; background: var(--color-accent); flex: none; }
 .btn--secondary { background: var(--color-primary-soft); color: var(--color-primary); border-color: var(--color-line); }
-.btn--danger { background: var(--color-danger); color: var(--color-on-primary); }
-.btn--ghost { background: transparent; border-color: var(--color-line); color: var(--color-ink-2); }
+.btn--danger { background: var(--color-accent); color: var(--color-on-primary); border-color: var(--color-accent); }
+.btn--ghost { background: transparent; border-color: var(--color-line); color: var(--color-ink-2); box-shadow: var(--shadow-0); }
 .btn--icon { width: var(--touch-min); padding: 0; border-color: var(--color-line); }
 .btn--block { width: 100%; }
 .btn--lg { min-height: var(--space-7); font-size: var(--font-3); padding: 0 var(--space-5); }
 
-/* ---------- 卡片 ---------- */
+/* ---------- 卡片：纸页方角，左侧墨线，硬边 offset 投影 ---------- */
 .card {
   background: var(--color-surface);
   border: 1px solid var(--color-line);
+  border-left: 3px solid var(--color-primary);
   border-radius: var(--radius-2);
-  box-shadow: var(--shadow-1);
+  box-shadow: var(--shadow-paper);
   overflow: hidden;
+  animation: ledger-in var(--motion-normal) both;
 }
 .card__head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--color-line-2);
   font-size: var(--font-2);
   font-weight: 600;
 }
+/* 批改章：每个小节的起首一枚朱红方块 */
+.card__head::before {
+  content: "";
+  width: 7px;
+  height: var(--space-4);
+  background: var(--color-accent);
+  flex: none;
+}
+/* 只有「标题 + 右侧小字」两个子元素时才把小字推到最右；单标题卡片不能推右 */
+.card__head > :last-child:not(:first-child) { margin-left: auto; }
 .card__body { padding: var(--space-4); }
 .card__body > * + * { margin-top: var(--space-3); }
 
-/* ---------- 状态标签（颜色 + 文字） ---------- */
+/* ---------- 状态标签（颜色 + 文字）：方角小章 ---------- */
 .tag {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
   min-height: var(--space-5);
   padding: 0 var(--space-2);
-  border-radius: var(--radius-4);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-1);
   background: var(--color-line-2);
   color: var(--color-ink-2);
   font-size: var(--font-1);
@@ -74,11 +90,11 @@
 .tag--mastered { background: var(--color-teal-soft); color: var(--color-teal); }
 .tag--danger { background: var(--color-danger-soft); color: var(--color-danger); }
 
-/* ---------- 进度条与五态进度 ---------- */
+/* ---------- 进度条与五态进度：当前一步用红笔 ---------- */
 .progress { display: flex; flex-direction: column; gap: var(--space-2); }
 .progress__bar {
   height: var(--space-2);
-  border-radius: var(--radius-4);
+  border-radius: var(--radius-1);
   background: var(--color-line-2);
   overflow: hidden;
 }
@@ -86,8 +102,8 @@
   display: block;
   height: 100%;
   width: var(--progress-value, 0%);
-  border-radius: var(--radius-4);
-  background: var(--color-teal);
+  border-radius: var(--radius-1);
+  background: var(--color-primary);
   transition: width var(--motion-normal);
 }
 .progress__step { display: flex; gap: var(--space-2); flex-wrap: wrap; }
@@ -101,10 +117,10 @@
   font-size: var(--font-1);
   text-align: center;
 }
-.progress__step > .is-current { background: var(--color-primary-soft); color: var(--color-primary); font-weight: 700; }
+.progress__step > .is-current { background: var(--color-accent-soft); color: var(--color-accent); font-weight: 700; }
 .progress__step > .is-done { background: var(--color-teal-soft); color: var(--color-teal); }
 
-/* ---------- 表单 ---------- */
+/* ---------- 表单：账格里的填写栏 ---------- */
 .field { display: flex; flex-direction: column; gap: var(--space-2); }
 .field > label { font-size: var(--font-2); font-weight: 600; color: var(--color-ink-2); }
 .input, .select, .textarea {
@@ -112,20 +128,21 @@
   min-height: var(--touch-min);
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-line);
+  border-bottom: 2px solid var(--color-primary);
   border-radius: var(--radius-1);
   background: var(--color-surface);
   color: var(--color-ink);
   font-size: var(--font-3);
 }
 .textarea { min-height: calc(var(--space-7) * 2); resize: vertical; line-height: var(--line-body); }
-.input:focus, .select:focus, .textarea:focus { border-color: var(--color-primary); }
-.input[aria-invalid="true"], .textarea[aria-invalid="true"] { border-color: var(--color-danger); }
+.input:focus, .select:focus, .textarea:focus { border-bottom-color: var(--color-accent); }
+.input[aria-invalid="true"], .textarea[aria-invalid="true"] { border-bottom-color: var(--color-danger); }
 .field__hint { font-size: var(--font-1); color: var(--color-muted); }
 .field__error { font-size: var(--font-1); color: var(--color-danger); }
 .field-row { display: flex; flex-wrap: wrap; gap: var(--space-3); }
 .field-row > .field { flex: 1 1 200px; }
 
-/* ---------- 空态 / 骨架屏 ---------- */
+/* ---------- 空态 / 骨架屏：空态铺账格横线 ---------- */
 .empty {
   display: flex;
   flex-direction: column;
@@ -134,10 +151,11 @@
   padding: var(--space-7) var(--space-4);
   border: 1px dashed var(--color-line);
   border-radius: var(--radius-2);
+  background-image: var(--texture-rule);
   color: var(--color-muted);
   text-align: center;
 }
-.empty__title { font-size: var(--font-4); color: var(--color-ink-2); font-weight: 600; }
+.empty__title { font-size: var(--font-4); color: var(--color-ink-2); font-weight: 600; font-family: var(--font-display); }
 .skeleton {
   border-radius: var(--radius-1);
   background: var(--color-line-2);
@@ -148,21 +166,22 @@
 .skeleton--block { height: calc(var(--space-7) * 2); }
 @keyframes skeleton-pulse { from { opacity: 1; } to { opacity: .45; } }
 
-/* ---------- 提示条与 Toast ---------- */
+/* ---------- 提示条与 Toast：批注条左侧一道红笔线 ---------- */
 .alert {
   display: flex;
   align-items: flex-start;
   gap: var(--space-2);
   padding: var(--space-3) var(--space-4);
   border: 1px solid var(--color-line);
+  border-left: 3px solid var(--color-primary);
   border-radius: var(--radius-1);
   background: var(--color-primary-soft);
   color: var(--color-ink-2);
   font-size: var(--font-2);
 }
-.alert--error { background: var(--color-danger-soft); color: var(--color-danger); }
-.alert--warn { background: var(--color-amber-soft); color: var(--color-warning-text); }
-.alert--info { background: var(--color-teal-soft); color: var(--color-teal); }
+.alert--error { background: var(--color-danger-soft); color: var(--color-danger); border-left-color: var(--color-danger); }
+.alert--warn { background: var(--color-amber-soft); color: var(--color-warning-text); border-left-color: var(--color-amber); }
+.alert--info { background: var(--color-teal-soft); color: var(--color-teal); border-left-color: var(--color-teal); }
 .toast {
   position: fixed;
   left: 50%;
@@ -170,19 +189,20 @@
   transform: translateX(-50%);
   max-width: calc(100vw - var(--space-6));
   padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-2);
-  background: var(--color-ink);
+  border: 1px solid var(--color-spine);
+  border-radius: var(--radius-1);
+  background: var(--color-spine);
   color: var(--color-surface);
   box-shadow: var(--shadow-3);
   font-size: var(--font-2);
   z-index: 60;
 }
-.toast--error { background: var(--color-danger); color: var(--color-on-primary); }
+.toast--error { background: var(--color-accent); color: var(--color-on-primary); }
 
-/* ---------- 识别框与置信度 ---------- */
+/* ---------- 识别框与置信度：红笔圈题 ---------- */
 .bbox {
   position: absolute;
-  border: 2px solid var(--color-amber);
+  border: 2px solid var(--color-accent);
   border-radius: var(--radius-1);
   background: transparent;
   pointer-events: none;
@@ -193,7 +213,7 @@
   left: -2px;
   padding: 0 var(--space-1);
   border-radius: var(--radius-1);
-  background: var(--color-amber);
+  background: var(--color-accent);
   color: var(--color-on-primary);
   font-size: var(--font-1);
   line-height: var(--space-5);
@@ -205,13 +225,14 @@
 .confidence--high { color: var(--color-teal); }
 .confidence__dot { width: var(--space-2); height: var(--space-2); border-radius: var(--radius-4); background: currentColor; }
 
-/* ---------- 题卡（屏幕与打印共用数据源） ---------- */
+/* ---------- 题卡（屏幕与打印共用数据源）：答题线必须是真线条，不能只靠背景 ---------- */
 .qcard {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
   padding: var(--space-4);
   border: 1px solid var(--color-line);
+  border-left: 3px solid var(--color-accent);
   border-radius: var(--radius-2);
   background: var(--color-surface);
   break-inside: avoid;
@@ -220,17 +241,32 @@
 .qcard__head { display: flex; justify-content: space-between; gap: var(--space-2); font-size: var(--font-1); color: var(--color-muted); }
 .qcard__prompt { font-size: var(--font-3); line-height: var(--line-body); white-space: pre-wrap; }
 .qcard__figure { max-height: calc(var(--space-7) * 5); object-fit: contain; }
-.qcard__lines { display: flex; flex-direction: column; gap: var(--space-4); }
+.qcard__lines { display: flex; flex-direction: column; gap: var(--space-4); background-image: var(--texture-rule); }
 .qcard__line { border-bottom: 1px solid var(--color-line); min-height: var(--space-6); }
 
-/* ---------- 通用工具 ---------- */
+/* ---------- 通用工具：KPI 数字用衬线活字，账格序号用 CSS counter ---------- */
 .stack { display: flex; flex-direction: column; gap: var(--space-3); }
 .row { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-3); }
 .grow { flex: 1 1 auto; }
 .muted { color: var(--color-muted); }
 .small { font-size: var(--font-1); }
-.stat { font-size: var(--font-7); font-weight: 700; line-height: var(--line-tight); color: var(--color-primary); }
+.stat {
+  font-family: var(--font-display);
+  font-size: var(--font-7);
+  font-weight: 600;
+  line-height: var(--line-tight);
+  color: var(--color-ink);
+}
 .stat-label { font-size: var(--font-2); color: var(--color-muted); }
+.grid--stats { counter-reset: kpi; }
+.grid--stats > .card { counter-increment: kpi; }
+.stat-label::before {
+  content: counter(kpi, decimal-leading-zero) " / ";
+  font-family: var(--font-display);
+  color: var(--color-accent);
+  letter-spacing: .08em;
+}
+.grid--stats > .card:first-child .stat { color: var(--color-accent); }
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -240,13 +276,15 @@
   white-space: nowrap;
 }
 
-/* ---------- 收件箱：原图与识别框叠层 ---------- */
-#inbox-image-wrap { position: relative; width: 100%; line-height: 0; }
+/* ---------- 收件箱：原图与红笔识别框叠层 ---------- */
+#inbox-image-wrap { position: relative; width: 100%; line-height: 0; border: 1px solid var(--color-line); }
 #inbox-image-wrap img { display: block; width: 100%; height: auto; }
+/* 尚未选择照片时不显示破图与 alt 文字，由旁边的空态承担说明 */
+#inbox-image-wrap img:not([src]), #inbox-image-wrap img[src=""] { display: none; }
 #inbox-bboxes { position: absolute; inset: 0; line-height: var(--line-body); }
 #inbox-bboxes .bbox { cursor: pointer; pointer-events: auto; }
 #inbox-bboxes .bbox:hover { border-color: var(--color-primary); }
 #inbox-drafts .card { outline: none; }
-#inbox-drafts .card.is-focused { box-shadow: var(--shadow-2); border-color: var(--color-primary); }
+#inbox-drafts .card.is-focused { box-shadow: var(--shadow-paper); border-left-color: var(--color-accent); }
 #inbox-drafts .field-row > .field { min-width: 140px; }
 .draft-result { font-size: var(--font-2); color: var(--color-teal); }

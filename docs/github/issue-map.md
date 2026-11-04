@@ -3,7 +3,7 @@
 | 项 | 值 |
 | --- | --- |
 | 仓库 | https://github.com/wwq0327/mistake-loop |
-| Issue 总数 | 27 |
+| Issue 总数 | 28 |
 | 生成依据 | `docs/requirements/PRD.md`（v2 增量 F15-F27 / U1-U8 / B1-B12）、`docs/plans/2026-11-04-v2-plan.md` 第九节 |
 | 校验命令 | `node scripts/check-issue-map.mjs`，由 `test/issue-map.test.mjs` 测试先行守护 |
 
@@ -40,6 +40,7 @@
 | #25 | P6 P6 验证与交付 | B2 | [CI 加入 UI 静态规范与版本矩阵](https://github.com/wwq0327/mistake-loop/issues/25) |
 | #26 | P6 P6 验证与交付 | B1-B12 | [B1-B12 全量验收与结果回读](https://github.com/wwq0327/mistake-loop/issues/26) |
 | #27 | P6 P6 验证与交付 | 文档索引 / 决策记录 | [README 与文档同步 v2、发布说明](https://github.com/wwq0327/mistake-loop/issues/27) |
+| #28 | P7 P7 前端设计改版 | Frontend Design / U1-U8 | [前端设计改版：批改账簿（Ledger）风格](https://github.com/wwq0327/mistake-loop/issues/28) |
 
 ## 阶段汇总
 
@@ -52,5 +53,6 @@
 | P4 P4 收件箱与题目详情 | 3 |
 | P5 P5 其余四页 | 4 |
 | P6 P6 验证与交付 | 3 |
+| P7 P7 前端设计改版 | 1 |
 
 新增 Issue 时：同步更新 `scripts/check-issue-map.mjs` 的 `EXPECTED_COUNT`，重跑测试与校验脚本。

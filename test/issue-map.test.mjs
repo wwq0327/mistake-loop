@@ -32,7 +32,7 @@ test('映射文件不存在时必须判失败', () => {
 });
 
 test('编号不连续时必须判失败', () => {
-  withFile(validRows(1, 27, { omit: 9 }), (file) => {
+  withFile(validRows(1, 28, { omit: 9 }), (file) => {
     const out = checkIssueMap(file);
     assert.equal(out.ok, false);
     assert.match(out.errors.join(' '), /#9/);
@@ -40,17 +40,17 @@ test('编号不连续时必须判失败', () => {
 });
 
 test('行内缺阶段或需求编号时必须判失败', () => {
-  const bad = `${validRows(1, 27)}\n| #28 |  |  |`;
+  const bad = `${validRows(1, 28)}\n| #29 |  |  |`;
   withFile(bad, (file) => {
     const out = checkIssueMap(file);
     assert.equal(out.ok, false);
   });
 });
 
-test('27 个编号齐全且字段完整时通过', () => {
-  withFile(validRows(1, 27), (file) => {
+test('28 个编号齐全且字段完整时通过', () => {
+  withFile(validRows(1, 28), (file) => {
     const out = checkIssueMap(file);
     assert.equal(out.ok, true, out.errors.join('; '));
-    assert.equal(out.count, 27);
+    assert.equal(out.count, 28);
   });
 });
