@@ -11,6 +11,7 @@ import { openDb, migrate, closeDb } from '../src/db.mjs';
 import { createApp } from '../src/server.mjs';
 import { createJobWorker } from '../src/ai/jobs.mjs';
 import { snapshot, diffRedlines, scanAiSource } from '../src/ai/redlines.mjs';
+import { parseTestSummary } from '../scripts/parse-test-summary.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..');
@@ -117,7 +118,9 @@ describe('AI 路径的教学法红线', () => {
     delete env.NODE_TEST_CONTEXT;
     const result = spawnSync(process.execPath, ['--test', ...v1Files], { encoding: 'utf8', env });
     assert.equal(result.status, 0, `${result.stdout.slice(-400)}${result.stderr.slice(-200)}`);
-    assert.match(result.stdout, /# pass 28\b/, 'v1 用例数不是 28');
-    assert.match(result.stdout, /# fail 0\b/, 'v1 回归有失败用例');
+    const summary = parseTestSummary(result.stdout);
+    assert.equal(summary.tests, 28, 'v1 用例数不是 28');
+    assert.equal(summary.pass, 28, 'v1 通过数不是 28');
+    assert.equal(summary.fail, 0, 'v1 回归有失败用例');
   });
 });

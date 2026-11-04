@@ -38,6 +38,25 @@ test('#25 CI 最小权限与并发收敛', () => {
   assert.match(ci, /concurrency:/, '缺并发收敛');
 });
 
+// Node 22 的 node:test 输出 `# pass 28`，Node 26 输出 `ℹ pass 28`。
+// 真实 CI run 41836692050 在 Node 26 上因硬编码 TAP 前缀红了，故先把解析契约写成测试。
+test('#25 Node 22/26 两种 reporter 都能解析出同一份 v1 回归摘要', async () => {
+  const mod = await import('../scripts/parse-test-summary.mjs');
+  assert.equal(typeof mod.parseTestSummary, 'function', '缺跨版本摘要解析函数');
+  const tap22 = '# tests 28\n# suites 6\n# pass 28\n# fail 0\n';
+  const spec26 = 'ℹ tests 28\nℹ suites 6\nℹ pass 28\nℹ fail 0\n';
+  assert.deepEqual(mod.parseTestSummary(tap22), { tests: 28, pass: 28, fail: 0 });
+  assert.deepEqual(mod.parseTestSummary(spec26), { tests: 28, pass: 28, fail: 0 });
+  assert.equal(mod.parseTestSummary('ℹ pass 27\nℹ fail 1\n').fail, 1, '解析不出失败数会放过回归红灯');
+});
+
+test('#25 v1 回归检查不再硬编码单一 reporter 前缀', () => {
+  const source = read('test/redlines.test.mjs');
+  assert.match(source, /parseTestSummary/, '未使用跨版本摘要解析');
+  assert.doesNotMatch(source, /# pass 28/, '仍硬编码 Node 22 的 TAP 前缀');
+  assert.doesNotMatch(source, /# fail 0/, '仍硬编码 Node 22 的 TAP 前缀');
+});
+
 test('#25 本地违规样例：check-ui 退出码 1，等价于 CI 转红', () => {
   const dir = mkdtempSync(join(tmpdir(), 'ml-ci-violation-'));
   try {
