@@ -7,6 +7,9 @@ function num(value, fallback = 0) {
 
 // spec: { width, height, shapes: [{type:'line'|'rect'|'text', ...}] }
 // 输出内联 SVG 字符串；所有数值收敛为数字、所有文本转义，避免注入。
+// 颜色一律用 currentColor：SVG 内联在 DOM 里时它继承 --color-ink，
+// 出纸层（print.css 把 --color-ink 重映射到 --print-ink）与深色模式都能接管。
+// 写死 #333 之类的字面色值会绕开整套设计令牌，见 #44。
 export function renderGeometry(spec) {
   if (!spec || typeof spec !== 'object') return '';
   const width = Math.min(Math.max(num(spec.width, 400), 50), 2000);
@@ -15,11 +18,11 @@ export function renderGeometry(spec) {
   const body = shapes.map((shape) => {
     switch (shape.type) {
       case 'line':
-        return `<line x1="${num(shape.x1)}" y1="${num(shape.y1)}" x2="${num(shape.x2)}" y2="${num(shape.y2)}" stroke="#333" stroke-width="${num(shape.width, 2)}" />`;
+        return `<line x1="${num(shape.x1)}" y1="${num(shape.y1)}" x2="${num(shape.x2)}" y2="${num(shape.y2)}" stroke="currentColor" stroke-width="${num(shape.width, 2)}" />`;
       case 'rect':
-        return `<rect x="${num(shape.x)}" y="${num(shape.y)}" width="${num(shape.w)}" height="${num(shape.h)}" fill="none" stroke="#333" stroke-width="${num(shape.width, 2)}" />`;
+        return `<rect x="${num(shape.x)}" y="${num(shape.y)}" width="${num(shape.w)}" height="${num(shape.h)}" fill="none" stroke="currentColor" stroke-width="${num(shape.width, 2)}" />`;
       case 'text':
-        return `<text x="${num(shape.x)}" y="${num(shape.y)}" font-size="${num(shape.size, 14)}" fill="#222">${escapeHtml(shape.text)}</text>`;
+        return `<text x="${num(shape.x)}" y="${num(shape.y)}" font-size="${num(shape.size, 14)}" fill="currentColor">${escapeHtml(shape.text)}</text>`;
       default:
         return '';
     }
