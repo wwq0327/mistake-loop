@@ -35,6 +35,56 @@
           <label for="page-q">在本页查找</label>
           <input id="page-q" class="input" type="search" placeholder="输入关键词，过滤本页内容">
         </div>
+
+        <section id="library-filters" class="card">
+          <div class="card__head">
+            <h2>筛选</h2>
+            <span class="small muted" id="library-summary">正在读取实时统计…</span>
+          </div>
+          <div class="card__body">
+            <div class="field-row">
+              <div class="field">
+                <label for="library-filter-subject">科目</label>
+                <select id="library-filter-subject" class="select"></select>
+              </div>
+              <div class="field">
+                <label for="library-filter-status">状态</label>
+                <select id="library-filter-status" class="select"></select>
+              </div>
+              <div class="field">
+                <label for="library-filter-node">教材单元</label>
+                <select id="library-filter-node" class="select"></select>
+              </div>
+              <div class="field">
+                <label for="library-filter-pending">只看待补定位</label>
+                <input id="library-filter-pending" type="checkbox">
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="library-batch" class="card">
+          <div class="card__head">
+            <h2>批量补教材定位</h2>
+            <span class="small muted" id="library-batch-selected">已勾选 0 道</span>
+          </div>
+          <div class="card__body">
+            <div class="field-row">
+              <div class="field">
+                <label for="library-batch-node">挂到哪个教材单元</label>
+                <select id="library-batch-node" class="select"></select>
+              </div>
+              <button id="library-batch-apply" class="btn btn--primary" type="button">批量挂上</button>
+              <button id="library-select-all" class="btn btn--ghost" type="button">勾选本次结果</button>
+            </div>
+            <p class="field__hint">挂错科目的节点会被整批拒绝，不会有半批写入；教材单元与所有计数都来自实时查询。</p>
+          </div>
+        </section>
+
+        <section id="library-list" class="card">
+          <div class="card__head"><h2>题目列表</h2></div>
+          <div class="card__body" id="library-list-body"></div>
+        </section>
         <div id="view" class="stack" aria-live="polite"></div>
       </div>
     </main>

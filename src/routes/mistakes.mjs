@@ -70,6 +70,57 @@ export function createMistakesRouter({ db, dataDir }) {
     res.status(201).json(db.prepare('SELECT id, status, image_path, created_at FROM mistakes WHERE id = ?').get(id));
   });
 
+  // 批量补教材定位：整批校验、整批写入，挂错科目的节点一律拒绝，不留半批数据。
+  router.post('/mistakes/batch-textbook-ref', (req, res) => {
+    const body = req.body ?? {};
+    const rawIds = body.ids;
+    assert(
+      Array.isArray(rawIds) && rawIds.length > 0 && rawIds.length <= 200,
+      'ids 必须是 1-200 个题目编号',
+      'INVALID_IDS',
+    );
+    const ids = [...new Set(rawIds.map((raw) => checkId(raw)))];
+    const nodeId = checkId(body.textbook_node_id);
+    const node = db.prepare('SELECT * FROM textbook_nodes WHERE id = ?').get(nodeId);
+    if (!node) notFound('教材节点不存在');
+
+    const placeholders = ids.map(() => '?').join(', ');
+    const rows = db.prepare(`
+      SELECT id, subject, textbook_node_id, needs_textbook_ref
+      FROM mistakes WHERE id IN (${placeholders})
+    `).all(...ids);
+    assert(rows.length === ids.length, '有题目不存在，整批不处理', 'INVALID_IDS');
+    const mismatched = rows.filter((row) => row.subject !== node.subject);
+    assert(
+      mismatched.length === 0,
+      `挂错科目：${mismatched.map((row) => row.id).join(', ')} 不是 ${node.subject} 的题`,
+      'SUBJECT_MISMATCH',
+    );
+
+    // 已挂到同一节点且已清标记的题跳过，重复点不会制造多余写入。
+    const toUpdate = rows.filter((row) => row.textbook_node_id !== nodeId || row.needs_textbook_ref !== 0);
+    const now = nowIso();
+    withTransaction(db, () => {
+      const stmt = db.prepare(`
+        UPDATE mistakes
+        SET textbook_node_id = ?, edition = ?, grade = ?, semester = ?, unit_no = ?,
+            unit_title = ?, lesson_title = ?, needs_textbook_ref = 0, updated_at = ?
+        WHERE id = ?
+      `);
+      for (const row of toUpdate) {
+        stmt.run(nodeId, node.edition, node.grade, node.semester, node.unit_no,
+          node.unit_title, node.lesson_title, now, row.id);
+      }
+    });
+    res.json({
+      updated: toUpdate.length,
+      skipped: rows.length - toUpdate.length,
+      nodeId,
+      ids,
+      node: { id: node.id, subject: node.subject, unit_no: node.unit_no, unit_title: node.unit_title },
+    });
+  });
+
   router.get('/mistakes', (req, res) => {
     const clauses = [];
     const params = [];
@@ -84,6 +135,10 @@ export function createMistakesRouter({ db, dataDir }) {
     if (req.query.needs_textbook_ref !== undefined) {
       clauses.push('needs_textbook_ref = ?');
       params.push(String(req.query.needs_textbook_ref) === '1' ? 1 : 0);
+    }
+    if (req.query.textbook_node_id !== undefined && req.query.textbook_node_id !== '') {
+      clauses.push('textbook_node_id = ?');
+      params.push(checkId(req.query.textbook_node_id));
     }
     const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
     const items = db.prepare(`SELECT * FROM mistakes ${where} ORDER BY id DESC LIMIT 500`).all(...params);

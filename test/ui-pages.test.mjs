@@ -184,3 +184,34 @@ test('#22 A4 卡片不跨页断题', () => {
   assert.match(css, /break-inside:\s*avoid/, '缺不跨页断题规则');
   assert.match(css, /page-break-inside:\s*avoid/, '缺旧浏览器兼容规则');
 });
+
+// #23 测试先行：题库三档筛选与批量补教材定位。
+// 红灯预期：library.html 缺筛选/批量骨架，library.js 未调 meta 与批量接口。
+test('#23 题库页含三档筛选、批量入口与实时结果区骨架', () => {
+  const page = read('public/library.html');
+  assert.ok(page, 'library.html 不存在');
+  for (const id of [
+    'library-filter-subject', 'library-filter-status', 'library-filter-node',
+    'library-filter-pending', 'library-batch-node', 'library-batch-apply',
+    'library-batch-selected', 'library-list', 'library-summary',
+  ]) {
+    assert.ok(page.includes(`id="${id}"`), `library.html 缺 #${id}`);
+  }
+  for (const target of [
+    'library-filter-subject', 'library-filter-status', 'library-filter-node',
+    'library-filter-pending', 'library-batch-node',
+  ]) {
+    assert.match(page, new RegExp(`<label\\s+for="${target}"`), `缺 label[for=${target}]`);
+  }
+});
+
+test('#23 题库筛选与批量动作都走现有 meta/mistakes 实时接口', () => {
+  const source = read('public/js/pages/library.js');
+  assert.ok(source, 'library.js 不存在');
+  assert.match(source, /\/api\/meta/, '未取教材节点与实时统计');
+  assert.match(source, /\/api\/mistakes/, '未取筛选结果');
+  assert.match(source, /textbook_node_id/, '缺教材单元筛选参数');
+  assert.match(source, /needs_textbook_ref/, '缺待补定位筛选');
+  assert.match(source, /batch-textbook-ref/, '缺批量补定位接口');
+  assert.match(source, /SUBJECT_MISMATCH|挂错科目|科目不一致/, '挂错科目未被拦截/提示');
+});
