@@ -4,8 +4,7 @@
 // 任一 B 项不达标即退出 1；B11 的审美部分只标注「待用户判断」，不算通过也不算失败。
 import { spawnSync } from 'node:child_process';
 import {
-  mkdtempSync, mkdirSync, copyFileSync, cpSync, existsSync,
-  rmSync, writeFileSync, readFileSync,
+  mkdtempSync, mkdirSync, existsSync, rmSync, writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
@@ -19,6 +18,7 @@ import { parseTestSummary } from './parse-test-summary.mjs';
 import { backup, restore } from './backup.mjs';
 import { indexImages } from '../src/lib/image-index.mjs';
 import { evaluateB10 } from './acceptance-checks.mjs';
+import { copyDataDir } from './snapshot.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..');
@@ -58,16 +58,10 @@ function runTests(files) {
   return { status: result.status, ...parseTestSummary(result.stdout) };
 }
 
+// 真实库副本：走一致性快照（VACUUM INTO），不再逐个拷贝 db + wal + shm。
+// 逐文件拷贝在 WAL 模式下会拿到撕裂快照，实测源库 3 行、副本只读到 2 行。
 function realCopy() {
-  const dir = mkdtempSync(join(tmpdir(), 'ml-accept-real-'));
-  mkdirSync(join(dir, 'images'), { recursive: true });
-  for (const name of ['mistakes.db', 'mistakes.db-wal', 'mistakes.db-shm']) {
-    const src = join(root, 'data', name);
-    if (existsSync(src)) copyFileSync(src, join(dir, name));
-  }
-  const images = join(root, 'data', 'images');
-  if (existsSync(images)) cpSync(images, join(dir, 'images'), { recursive: true });
-  return dir;
+  return copyDataDir({ dataDir: join(root, 'data') });
 }
 
 async function request(base, path, { method = 'GET', body } = {}) {
@@ -126,7 +120,8 @@ async function main() {
       'api.test.mjs', 'import-legacy.test.mjs',
     ]);
     const check = spawnSync('npm', ['run', 'check'], { cwd: root, encoding: 'utf8' });
-    const dir = realCopy();
+    const copy = realCopy();
+    const dir = copy.dir;
     const snapshot = backup({ dataDir: dir, outputDir: join(dir, 'backups') });
     const drill = restore({ backupDir: snapshot.target });
     const db = openDb(join(dir, 'mistakes.db'));
@@ -134,7 +129,7 @@ async function main() {
     const counts = { mistakes: count('mistakes'), variants: count('variants'), textbook_nodes: count('textbook_nodes') };
     const images = indexImages({ dataDir: dir, db }).counts;
     closeDb(db);
-    rmSync(dir, { recursive: true, force: true });
+    copy.cleanup();
     const ok = v1.status === 0 && v1.tests === 28 && v1.pass === 28 && v1.fail === 0
       && check.status === 0 && drill.ok;
     record('B1', '回归', ok,
@@ -270,15 +265,15 @@ async function main() {
   {
     const status = git(['status', '--porcelain'], LEGACY);
     const lines = status.stdout.trim().split('\n').filter(Boolean).length;
-    const dir = realCopy();
-    const db = openDb(join(dir, 'mistakes.db'));
+    const copy = realCopy();
+    const db = openDb(join(copy.dir, 'mistakes.db'));
     const count = (table) => db.prepare(`SELECT COUNT(*) c FROM ${table}`).get().c;
     const counts = {
       mistakes: count('mistakes'), variants: count('variants'), textbook_nodes: count('textbook_nodes'),
     };
-    const imageCounts = indexImages({ dataDir: dir, db }).counts;
+    const imageCounts = indexImages({ dataDir: copy.dir, db }).counts;
     closeDb(db);
-    rmSync(dir, { recursive: true, force: true });
+    copy.cleanup();
     const out = evaluateB10({ legacyStatusLines: lines, dbCounts: counts, imageCounts });
     record('B10', '旧库与数据', out.ok, out.evidence);
   }
