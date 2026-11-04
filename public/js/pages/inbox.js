@@ -164,6 +164,37 @@ export async function mount({ root, api, state }) {
     }
   }
 
+  // 拆分：在题干里选中要拆出去的一段文字，拆成另一题。
+  // 先把当前编辑存回去，再按选区拆——否则服务端看到的还是旧题干，选区下标会对不上。
+  async function splitDraft(draft, box) {
+    const control = box.querySelector(`#f-${draft.id}-prompt`);
+    if (!control) {
+      notify('找不到题干输入框，无法拆分。', 'error');
+      return;
+    }
+    const start = control.selectionStart;
+    const end = control.selectionEnd;
+    if (start === end) {
+      notify('先在题干里选中要拆出去的一段文字，再点「拆成另一题」。', 'warn');
+      return;
+    }
+    try {
+      await api(`/api/recognition-drafts/${draft.id}`, { method: 'PATCH', body: { prompt: control.value } });
+      const result = await api(`/api/recognition-drafts/${draft.id}/split`, {
+        method: 'POST', body: { start, end },
+      });
+      notify(`已拆成两题：第 ${result.first.seq} 题与第 ${result.second.seq} 题，都还要你确认才入库。`);
+      await refresh();
+      const target = document.getElementById(`draft-${result.second.id}`);
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        target.focus();
+      }
+    } catch (error) {
+      notify(`拆分失败：${error.message}`, 'error');
+    }
+  }
+
   async function retryFailed(ids) {
     if (!ids.length) return;
     try {
@@ -286,6 +317,7 @@ export async function mount({ root, api, state }) {
         button('确认入库', { variant: 'primary', onClick: () => commitDraft(draft, box.body, resultBox) }),
         button('裁剪重识别', { variant: 'ghost', onClick: () => cropAndRetry(draft) }),
         button('合并下一条', { variant: 'ghost', onClick: () => mergeDrafts(draft, box.body) }),
+        button('拆成另一题', { variant: 'ghost', onClick: () => splitDraft(draft, box.body) }),
         button('丢弃', { variant: 'danger', onClick: () => discardDraft(draft) }),
       );
       box.body.append(actions);

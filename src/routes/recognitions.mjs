@@ -121,6 +121,58 @@ function commitDraft(db, id, overrides = {}) {
   return { idempotent: false, mistakeId, status: 201 };
 }
 
+// 拆分一条草稿：AI 把一题切成两半时，老师在题干里选中要拆出去的那一段，掰成两题。
+// 教学法红线：拆分只改草稿，绝不写 mistakes；两条都仍是草稿，入库仍需逐题确认。
+// seq 有 UNIQUE(job_id, seq) 约束：新草稿紧跟原草稿，后续草稿整体后移。
+function splitDraft(db, id, start, end) {
+  const draft = db.prepare('SELECT * FROM recognition_drafts WHERE id = ?').get(id);
+  if (!draft) notFound('草稿不存在');
+  if (draft.status !== 'pending') conflict('只对待确认草稿可拆分');
+  const prompt = String(draft.prompt ?? '');
+  if (!prompt.trim()) {
+    throw new ValidationError('题干为空，没有可拆的内容', 'PROMPT_EMPTY');
+  }
+  if (!Number.isInteger(start) || !Number.isInteger(end)
+    || start < 0 || end > prompt.length || start >= end) {
+    throw new ValidationError('请先在题干里选中要拆出去的一段文字', 'SPLIT_RANGE_INVALID');
+  }
+  // 拆出去的是选中段，留在原草稿的是其余部分（去掉选段，不是从中间一刀两断）。
+  const picked = prompt.slice(start, end);
+  const kept = prompt.slice(0, start) + prompt.slice(end);
+  if (!picked.trim()) {
+    throw new ValidationError('选中的部分没有内容，换一处再试', 'SPLIT_RANGE_INVALID');
+  }
+  if (!kept.trim()) {
+    throw new ValidationError('整段题干都被选中了，拆出去就没有剩下的题了', 'SPLIT_RANGE_INVALID');
+  }
+
+  const now = nowIso();
+  const newId = withTransaction(db, () => {
+    // 后面的草稿先整体让位：UNIQUE(job_id, seq) 是逐行检查的，直接 seq+1 会当场撞号，
+    // 所以先推到远离原区间的高位，再整体回落 1 格。
+    db.prepare('UPDATE recognition_drafts SET seq = seq + 10000 WHERE job_id = ? AND seq > ?').run(draft.job_id, draft.seq);
+    db.prepare('UPDATE recognition_drafts SET seq = seq - 9999 WHERE job_id = ? AND seq > ?').run(draft.job_id, draft.seq);
+    db.prepare('UPDATE recognition_drafts SET prompt = ?, reviewed_at = ? WHERE id = ?').run(kept, now, id);
+    // 拆出来的那条不画框：选中的文字与原框的对应关系不可靠，硬画会框错位置。
+    const info = db.prepare(`INSERT INTO recognition_drafts
+      (job_id, seq, bbox, subject, prompt, options, student_answer_draft, correct_answer_draft,
+       question_type, knowledge_hint, has_figure, figure_desc, confidence, uncertain, raw_excerpt, status, created_at)
+      VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`)
+      .run(
+        draft.job_id, draft.seq + 1,
+        draft.subject, picked, draft.options, draft.student_answer_draft, draft.correct_answer_draft,
+        draft.question_type, draft.knowledge_hint, draft.has_figure, draft.figure_desc,
+        draft.confidence, draft.uncertain, draft.raw_excerpt, now,
+      );
+    return Number(info.lastInsertRowid);
+  });
+
+  return {
+    first: publicDraft(db.prepare('SELECT * FROM recognition_drafts WHERE id = ?').get(id)),
+    second: publicDraft(db.prepare('SELECT * FROM recognition_drafts WHERE id = ?').get(newId)),
+  };
+}
+
 // 状态接口只回非敏感聚合数据；密钥、端点、模型名、上游响应一概不出服务端。
 function fallbackAiStatus(db, worker) {
   const startIso = new Date(`${today()}T00:00:00+08:00`).toISOString();
@@ -218,6 +270,19 @@ export function createRecognitionsRouter({ db, dataDir, worker = null, aiStatus 
     if (row.status !== 'pending') conflict('只对待确认草稿可丢弃');
     db.prepare("UPDATE recognition_drafts SET status = 'discarded', reviewed_at = ? WHERE id = ?").run(nowIso(), id);
     res.json({ id, status: 'discarded' });
+  });
+
+  // 拆分：把一条草稿按题干的切分位置掰成两条，仍是草稿。
+  router.post('/recognition-drafts/:id/split', (req, res) => {
+    const id = checkId(req.params.id);
+    const start = Number(req.body?.start);
+    const end = Number(req.body?.end);
+    const result = splitDraft(
+      db, id,
+      Number.isInteger(start) ? start : Number.NaN,
+      Number.isInteger(end) ? end : Number.NaN,
+    );
+    res.json(result);
   });
 
   // 批量确认：每条独立事务，一条失败不影响其余；重复项返回幂等结果。

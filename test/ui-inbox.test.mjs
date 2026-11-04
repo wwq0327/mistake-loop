@@ -47,6 +47,16 @@ test('#18 可裁剪单题重识别、删除与合并草稿；失败有手工录�
   assert.match(source, /\/api\/recognition-drafts\//, '未引用草稿接口');
 });
 
+test('#33 草稿可拆成另一题：按题干选区拆分，有选区校验', () => {
+  const source = js();
+  assert.match(source, /\bsplitDraft\b/, '缺拆分交互函数');
+  assert.match(source, /selectionStart/, '没有读取题干选区起点');
+  assert.match(source, /selectionEnd/, '没有读取题干选区终点');
+  assert.match(source, /\/recognition-drafts\/\$\{[^}]+\}\/split/, '未调用拆分接口');
+  assert.match(source, /拆成另一题/, '缺「拆成另一题」入口文案');
+  assert.match(source, /选中/, '缺选区校验提示');
+});
+
 test('#18 页面仍遵守 UI 静态规范（无硬编码色值、无 innerHTML 赋值）', () => {
   const source = js();
   assert.doesNotMatch(source, /#[0-9a-fA-F]{3,8}\b/, 'JS 内出现硬编码色值');
