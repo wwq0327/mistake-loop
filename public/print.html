@@ -3,40 +3,51 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>打印导出 · mistake-loop</title>
+  <title>导出 A4 练习纸 · mistake-loop</title>
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="stylesheet" href="/style.css">
-  <link rel="stylesheet" href="/print.css" media="print">
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/layout.css">
+  <link rel="stylesheet" href="/css/print.css" media="print">
 </head>
 <body data-page="print">
-  <header class="topbar no-print">
-    <span class="brand">mistake-loop</span>
-    <nav>
-      <a href="/index.html">今日复习</a>
-      <a href="/capture.html">录入</a>
-      <a href="/print.html" class="active">打印</a>
+  <div class="shell">
+    <header class="topbar">
+      <span class="topbar__brand">mistake-loop</span>
+      <span class="topbar__spacer"></span>
+      <span class="small muted">导出 A4 练习纸</span>
+    </header>
+    <nav class="sidebar" aria-label="主导航">
+      <span class="sidebar__brand">mistake-loop</span>
+      <a href="/" class="nav-link">工作台</a>
+      <a href="/inbox" class="nav-link">识别收件箱</a>
+      <a href="/print" class="nav-link">打印</a>
+      <a href="/library" class="nav-link">题库</a>
+      <a href="/settings" class="nav-link">设置</a>
     </nav>
-  </header>
-
-  <main>
-    <section class="no-print">
-      <div class="hero">
-        <h1>导出 A4 练习纸</h1>
-        <p>学生版不含答案、不含引导提示。一题一张卡片，不跨页断题。</p>
+    <main class="main">
+      <div class="content">
+        <div class="page-head">
+          <h1>导出 A4 练习纸</h1>
+          <p>默认带今日复习；学生版不含答案与引导提示，一题一张卡片。</p>
+        </div>
+        <div class="field">
+          <label for="page-q">在本页查找</label>
+          <input id="page-q" class="input" type="search" placeholder="输入关键词，过滤本页内容">
+        </div>
+        <div id="view" class="stack" aria-live="polite"></div>
       </div>
-      <div class="actions">
-        <button id="select-all" class="btn btn-alt" type="button">全选</button>
-        <button id="build" class="btn" type="button">生成打印页</button>
-        <button id="do-print" class="btn btn-alt" type="button">打印</button>
-      </div>
-      <p class="hint">已选 <strong id="selected-count">0</strong> 题。</p>
-      <div id="choose-list"></div>
-    </section>
-
-    <section id="print-area" aria-label="A4 打印内容"></section>
-  </main>
-
-  <div id="toast" class="toast no-print" aria-live="polite"></div>
-  <script type="module" src="/app.js"></script>
+    </main>
+    <nav class="tabbar" aria-label="手机导航">
+      <a href="/" class="tab-link">工作台</a>
+      <a href="/inbox" class="tab-link">收件箱</a>
+      <a href="/print" class="tab-link">打印</a>
+      <a href="/library" class="tab-link">题库</a>
+      <a href="/settings" class="tab-link">设置</a>
+    </nav>
+  </div>
+  <div id="toast-host" aria-live="polite"></div>
+  <script type="module" src="/js/router.js"></script>
 </body>
 </html>

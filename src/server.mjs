@@ -34,6 +34,20 @@ export function createApp({ db, dataDir, schedulerState = { running: false, last
   app.use('/api', createVariantsRouter({ db }));
   app.use('/api', createReviewsRouter({ db }));
   app.use('/api', createPrintRouter({ db }));
+
+  // 六页信息架构：路径按动作命名，静态文件名只作载体。
+  const pageRoutes = [
+    ['/', 'index.html'],
+    ['/inbox', 'inbox.html'],
+    ['/mistake/:id', 'detail.html'],
+    ['/print', 'print.html'],
+    ['/library', 'library.html'],
+    ['/settings', 'settings.html'],
+  ];
+  for (const [route, file] of pageRoutes) {
+    app.get(route, (req, res) => res.sendFile(join(publicDir, file)));
+  }
+
   app.use(express.static(publicDir));
 
   app.use((req, res) => res.status(404).json({ error: { code: 'NOT_FOUND', message: '资源不存在' } }));

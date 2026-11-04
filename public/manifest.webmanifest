@@ -2,7 +2,7 @@
   "name": "mistake-loop 错题闭环",
   "short_name": "错题闭环",
   "description": "老师录入、每日自动排复习、A4 打印学生练习纸",
-  "start_url": "/index.html",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#f5f7fa",
   "theme_color": "#1a4d80",

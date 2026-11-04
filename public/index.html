@@ -3,41 +3,50 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>今日复习 · mistake-loop</title>
+  <title>工作台 · mistake-loop</title>
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/layout.css">
 </head>
-<body data-page="today">
-  <header class="topbar no-print">
-    <span class="brand">mistake-loop</span>
-    <nav>
-      <a href="/index.html" class="active">今日复习</a>
-      <a href="/capture.html">录入</a>
-      <a href="/print.html">打印</a>
+<body data-page="workbench">
+  <div class="shell">
+    <header class="topbar">
+      <span class="topbar__brand">mistake-loop</span>
+      <span class="topbar__spacer"></span>
+      <span class="small muted">工作台</span>
+    </header>
+    <nav class="sidebar" aria-label="主导航">
+      <span class="sidebar__brand">mistake-loop</span>
+      <a href="/" class="nav-link">工作台</a>
+      <a href="/inbox" class="nav-link">识别收件箱</a>
+      <a href="/print" class="nav-link">打印</a>
+      <a href="/library" class="nav-link">题库</a>
+      <a href="/settings" class="nav-link">设置</a>
     </nav>
-  </header>
-
-  <main>
-    <section class="hero no-print">
-      <h1>今天该练的题</h1>
-      <p id="date-label"></p>
-    </section>
-
-    <section id="stats" class="stats no-print"></section>
-
-    <section class="no-print">
-      <h2>待审核变式 <span id="pending-count" class="badge">0</span></h2>
-      <p class="hint">AI 或机器给出的变式，必须老师点过审核才生效、才上打印纸。</p>
-      <div id="pending-list"></div>
-    </section>
-
-    <section>
-      <h2>今日复习 <span id="today-count" class="badge">0</span></h2>
-      <div id="today-list"></div>
-    </section>
-  </main>
-
-  <div id="toast" class="toast no-print" aria-live="polite"></div>
-  <script type="module" src="/app.js"></script>
+    <main class="main">
+      <div class="content">
+        <div class="page-head">
+          <h1>今天该做什么</h1>
+          <p>四个数字，四个动作。到期的题自己会出现，不用手动算日子。</p>
+        </div>
+        <div class="field">
+          <label for="page-q">在本页查找</label>
+          <input id="page-q" class="input" type="search" placeholder="输入关键词，过滤本页内容">
+        </div>
+        <div id="view" class="stack" aria-live="polite"></div>
+      </div>
+    </main>
+    <nav class="tabbar" aria-label="手机导航">
+      <a href="/" class="tab-link">工作台</a>
+      <a href="/inbox" class="tab-link">收件箱</a>
+      <a href="/print" class="tab-link">打印</a>
+      <a href="/library" class="tab-link">题库</a>
+      <a href="/settings" class="tab-link">设置</a>
+    </nav>
+  </div>
+  <div id="toast-host" aria-live="polite"></div>
+  <script type="module" src="/js/router.js"></script>
 </body>
 </html>

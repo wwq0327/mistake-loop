@@ -62,6 +62,16 @@
   /* 触控下限 */
   --touch-min: 44px;
   --content-max: 1200px;
+
+  /* 打印专用浅色：出纸不受系统深色影响，色值只在这一处定义 */
+  --print-primary: #1c4e80;
+  --print-teal: #0f8b8d;
+  --print-ink: #16263a;
+  --print-ink-2: #33475f;
+  --print-muted: #5c6f86;
+  --print-surface: #ffffff;
+  --print-line: #e3eaf2;
+  --print-line-2: #eef3f8;
 }
 
 /* 深色跟随系统；打印页在 print.css 里强制覆盖回浅色。 */
