@@ -3,7 +3,7 @@
 | 项 | 值 |
 | --- | --- |
 | 仓库 | https://github.com/wwq0327/mistake-loop |
-| Issue 总数 | 55 |
+| Issue 总数 | 60 |
 | 生成依据 | `docs/requirements/PRD.md`（v2 增量 F15-F27 / U1-U8 / B1-B12）、`docs/plans/2026-11-04-v2-plan.md` 第九节 |
 | 校验命令 | `node scripts/check-issue-map.mjs`，由 `test/issue-map.test.mjs` 测试先行守护 |
 
@@ -68,6 +68,11 @@
 | #53 | P14 P14 教学法闸门与接口契约硬化 | U3 / 接口可达性守护 | [接口可达性守护不比对 method：前端写错方法 CI 全绿放行](https://github.com/wwq0327/mistake-loop/issues/53) |
 | #54 | P14 P14 教学法闸门与接口契约硬化 | F07 / B7 | [学生版打印卡片只有黑名单没有白名单：新字段可以悄悄上纸](https://github.com/wwq0327/mistake-loop/issues/54) |
 | #55 | P14 P14 教学法闸门与接口契约硬化 | F04 | [调度器只有留痕 SQL 有测试：启动补算与每日 00:05 触发从未被验证](https://github.com/wwq0327/mistake-loop/issues/55) |
+| #56 | P15 P15 重复提交与静默失败硬化 | F04 / 1-3-7-30 | [复习结果可被重复提交：一次复习连点两下，轮次跳两格、排期被推两次](https://github.com/wwq0327/mistake-loop/issues/56) |
+| #57 | P15 P15 重复提交与静默失败硬化 | F02 / F03 | [详情页「保存并进入纠错中」按钮缺状态闸门：复习中/已掌握的题也摆着，点了必然被拒](https://github.com/wwq0327/mistake-loop/issues/57) |
+| #58 | P15 P15 重复提交与静默失败硬化 | U3 / 静默失败 | [前端异步动作的失败没有兜底：筛选失败列表停旧数据零提示，AI 状态读不到谎报「待确认草稿 0」](https://github.com/wwq0327/mistake-loop/issues/58) |
+| #59 | P15 P15 重复提交与静默失败硬化 | F19 / 静默失败 | [批量确认丢弃失败原因：老师不知道哪条错、为什么错，「重试未成功的 N 题」是死循环](https://github.com/wwq0327/mistake-loop/issues/59) |
+| #60 | P15 P15 重复提交与静默失败硬化 | F07 / 静默失败 | [打印页计数与预览可能对不上：刷新失败后仍可打印，印出的是旧题](https://github.com/wwq0327/mistake-loop/issues/60) |
 
 ## 阶段汇总
 
@@ -88,5 +93,6 @@
 | P12 P12 备份与几何图链路硬化 | 5 |
 | P13 P13 断点扫除：闲置的后端能力接回界面 | 4 |
 | P14 P14 教学法闸门与接口契约硬化 | 4 |
+| P15 P15 重复提交与静默失败硬化 | 5 |
 
 新增 Issue 时：同步更新 `scripts/check-issue-map.mjs` 的 `EXPECTED_COUNT`，重跑测试与校验脚本。README 与发布说明里的 Issue 总数、用例数由 `scripts/check-docs.mjs` 守着，写了就必须等于真实来源，不许手抄。
