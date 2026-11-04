@@ -15,6 +15,17 @@ export function openDb(path = ':memory:') {
 
 export function migrate(db) {
   db.exec(readFileSync(join(here, 'schema.sql'), 'utf8'));
+  migrateV2(db);
+}
+
+// v2 幂等升级：建新表 + 给已有 mistakes 补溯源列。
+// 新库里 schema.sql 已含该列，PRAGMA 检查后跳过 ALTER；旧库则只加一次。
+export function migrateV2(db) {
+  db.exec(readFileSync(join(here, 'schema-v2.sql'), 'utf8'));
+  const cols = db.prepare('PRAGMA table_info(mistakes)').all().map((r) => r.name);
+  if (!cols.includes('recognition_draft_id')) {
+    db.exec('ALTER TABLE mistakes ADD COLUMN recognition_draft_id INTEGER');
+  }
 }
 
 // node:sqlite 没有事务包装器，本项目唯一需要手写的运行时补丁。

@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS mistakes (
   student_answer      TEXT,
   correct_answer      TEXT,
   image_path          TEXT,
+  recognition_draft_id INTEGER,
   source_paper        TEXT,
   knowledge_tags      TEXT,
   error_category      TEXT CHECK (error_category IN ('conceptual','procedural','metacognitive','factual')),
