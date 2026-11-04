@@ -7,6 +7,7 @@ const STEPS = ['待诊断', '诊断中', '纠错中', '复习中', '已掌握'];
 const STEP_KEYS = ['new', 'diagnosing', 'correcting', 'reviewing', 'mastered'];
 const STATUS_INDEX = { new: 0, diagnosing: 1, correcting: 2, reviewing: 3, mastered: 4 };
 const SUBJECT_LABEL = { math: '数学', chinese: '语文', english: '英语' };
+const LEVELS = ['surface', 'structure', 'context'];
 const LEVEL_LABEL = { surface: '换数字（表面）', structure: '换角度（结构）', context: '换场景（情境）' };
 
 function nextRequirement(item) {
@@ -38,6 +39,8 @@ export async function mount({ root, api }) {
   }
 
   const item = await api(`/api/mistakes/${id}`);
+  // 出题方向与错因子字典的唯一事实源在服务端 /api/meta，前端不写死。
+  const meta = await api('/api/meta').catch(() => null);
   const index = STATUS_INDEX[item.status] ?? 0;
   const gate = document.getElementById('detail-gate');
 
@@ -113,30 +116,85 @@ export async function mount({ root, api }) {
   gateRow.append(advance, el('span', 'field__hint', '结论为空则不能进入纠错中；先让学生自己说出来，老师再记录。'));
   diagnosis.append(gateRow);
 
-  // 三层变式审核
+  // 三层变式审核 + 录入。
+  // 录入入口是闭环的关键一环：状态机要求三层全部审核通过才进「复习中」，
+  // 界面若只能审核不能录入，老师就永远走不到复习。
   const variants = bodyOf('detail-variants');
   variants.replaceChildren();
-  if (!item.variants?.length) variants.append(empty('还没有变式', '变式需老师审核后才生效、才上打印纸。'));
-  for (const v of item.variants) {
-    const row = el('div', 'row');
-    row.append(
-      el('span', 'small', `${LEVEL_LABEL[v.level] || v.level}`),
-      el('span', 'grow small', v.prompt || '（待补）'),
-      el('span', 'small muted', v.reviewed ? `已审核 · ${v.result || ''}` : '待审核'),
-    );
-    if (!v.reviewed) {
-      row.append(button('审核通过', {
-        variant: 'ghost',
-        onClick: async () => {
-          try {
-            await api(`/api/variants/${v.id}/review`, { method: 'PATCH', body: { result: 'pass' } });
-            toast('变式已审核，生效并进入打印范围。');
-            await mount({ root, api });
-          } catch (error) { toast(`审核失败：${error.message}`, 'error'); }
-        },
-      }));
+  if (!item.variants?.length) {
+    variants.append(empty('还没有变式', '每题补三条：换数字、换角度、换场景。补完逐条审核，三层都通过才进入复习。'));
+  }
+  const rules = meta?.variantRules?.[item.subject] ?? {};
+  const existing = new Map((item.variants || []).map((v) => [v.level, v]));
+  for (const level of LEVELS) {
+    const found = existing.get(level);
+    if (found) {
+      const row = el('div', 'row');
+      row.append(
+        el('span', 'small', LEVEL_LABEL[level]),
+        el('span', 'grow small', found.prompt || '（待补）'),
+        el('span', 'small muted', found.reviewed ? `已审核 · ${found.result || ''}` : '待审核'),
+      );
+      if (!found.reviewed) {
+        row.append(button('审核通过', {
+          variant: 'ghost',
+          onClick: async () => {
+            try {
+              await api(`/api/variants/${found.id}/review`, { method: 'PATCH', body: { result: 'pass' } });
+              toast('变式已审核，生效并进入打印范围。');
+              await mount({ root, api });
+            } catch (error) { toast(`审核失败：${error.message}`, 'error'); }
+          },
+        }));
+      }
+      variants.append(row);
+      continue;
     }
-    variants.append(row);
+
+    // 还没录这一层：给一个录入框。方向提示只给教师看，不上学生版打印页。
+    const box = el('div', 'stack');
+    const promptField = el('div', 'field');
+    const promptLabel = el('label', '', `${LEVEL_LABEL[level]}变式的题干`);
+    promptLabel.htmlFor = `variant-prompt-${level}`;
+    const promptInput = el('input', 'input');
+    promptInput.id = `variant-prompt-${level}`;
+    promptInput.type = 'text';
+    promptInput.placeholder = '例：把数字换掉，题型与解法不变';
+    promptField.append(promptLabel, promptInput);
+
+    const answerField = el('div', 'field');
+    const answerLabel = el('label', '', `${LEVEL_LABEL[level]}变式的参考答案`);
+    answerLabel.htmlFor = `variant-answer-${level}`;
+    const answerInput = el('input', 'input');
+    answerInput.id = `variant-answer-${level}`;
+    answerInput.type = 'text';
+    answerInput.placeholder = '只有老师看得到';
+    answerField.append(answerLabel, answerInput);
+
+    const submit = button(`补这一层：${LEVEL_LABEL[level]}`, {
+      variant: 'secondary',
+      onClick: async () => {
+        const prompt = promptInput.value.trim();
+        if (!prompt) {
+          toast('先写一句变式题干。', 'error');
+          return;
+        }
+        try {
+          await api(`/api/mistakes/${id}/variants`, {
+            method: 'POST',
+            body: { variants: [{ level, prompt, correct_answer: answerInput.value.trim() || null }] },
+          });
+          toast('已录入这一层变式，审核通过后才生效。');
+          await mount({ root, api });
+        } catch (error) {
+          toast(`没能录入变式：${error.message}`, 'error');
+        }
+      },
+    });
+
+    box.append(promptField, answerField, submit);
+    if (rules[level]) box.append(el('p', 'field__hint', `出题方向：${rules[level]}`));
+    variants.append(box);
   }
 
   // 复习事件 + 调度会话留痕

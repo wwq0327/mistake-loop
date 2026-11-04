@@ -45,3 +45,30 @@ test('学生结论为空时界面禁止推进到纠错中', () => {
   assert.match(js, /纠错中/, '缺状态文案');
   assert.match(js, /is-current/, '当前态未高亮');
 });
+
+// #40：变式录入入口。原来只有审核，没有录入，闭环走不到「复习中」。
+test('#40 详情页有变式录入表单：三层各一个输入框与提交按钮', () => {
+  assert.match(js, /\/variants/, '没有调用变式录入接口');
+  assert.match(js, /POST|\.post\(|method:\s*'POST'/, '录入变式应走 POST');
+  for (const level of ['surface', 'structure', 'context']) {
+    assert.match(js, new RegExp(level), `缺 ${level} 层`);
+  }
+  assert.match(js, /input|textarea/, '缺题干输入控件');
+  assert.match(js, /field__hint|出题方向/, '缺出题方向提示');
+});
+
+test('#40 录入时带上这一层的 level 与题干', () => {
+  assert.match(js, /level/, '请求体应带 level');
+  assert.match(js, /prompt/, '请求体应带 prompt');
+  assert.match(js, /variants:\s*\[/, '请求体应是变式数组');
+  assert.match(js, /correct_answer/, '请求体应带参考答案');
+  assert.match(js, /variant-prompt-/, '题干输入框应有可绑定的 id');
+  assert.match(js, /variantRules/, '出题方向应取自服务端字典，不在前端硬编码');
+});
+
+test('#40 变式录入的界面控件沿用既有组件类，不写死宽度', () => {
+  assert.match(js, /'field'/, '应复用 .field 容器');
+  assert.match(js, /'input'|'textarea'|'select'/, '应复用既有表单控件类');
+  assert.doesNotMatch(js, /style\.width\s*=\s*['"]\d/, '不应写死宽度');
+});
+
