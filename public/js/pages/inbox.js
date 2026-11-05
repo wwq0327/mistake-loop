@@ -2,6 +2,7 @@
 // 红线：AI 只把字填进草稿；任何入库动作都必须由老师点确认，走 commit 接口。
 import { el, card, stateTag, button, empty, alert, toast, link } from '../ui.js';
 import { guard } from '../errors.js';
+import { describeError } from '../api.js';
 
 const SUBJECTS = [['', '请选择科目'], ['math', '数学'], ['chinese', '语文'], ['english', '英语']];
 const STATUS_LABEL = { pending: '待确认', committed: '已入库', discarded: '已丢弃' };
@@ -225,12 +226,15 @@ export async function mount({ root, api, state }) {
     try {
       const result = await api('/api/recognition-drafts/batch-commit', { method: 'POST', body: { ids } });
       const stillFailed = result.results.filter((item) => !item.ok);
-      notify(stillFailed.length
-        ? `重试后新入库 ${result.committed} 题，仍有 ${stillFailed.length} 题需补充信息。`
-        : `重试完成，新入库 ${result.committed} 题。`);
+      if (stillFailed.length) {
+        notify(`重试后新入库 ${result.committed} 题，仍有 ${stillFailed.length} 题没成功，原因见下方。`, 'warn');
+        root.append(renderBatchFailures(stillFailed));
+      } else {
+        notify(`重试完成，新入库 ${result.committed} 题。`);
+      }
       await refresh();
     } catch (error) {
-      notify(`重试失败：${error.message}，可逐题再试。`, 'error');
+      notify(`重试失败：${describeError(error)}，可逐题再试。`, 'error');
     }
   }
 
@@ -464,19 +468,61 @@ export async function mount({ root, api, state }) {
     try {
       const result = await api('/api/recognition-drafts/batch-commit', { method: 'POST', body: { ids } });
       const failed = result.results.filter((r) => !r.ok);
-      notify(failed.length
-        ? `已入库 ${result.committed} 题，${failed.length} 题需补充信息后重试。`
-        : `已入库 ${result.committed} 题。`);
       if (failed.length) {
-        const failedIds = failed.map((item) => item.id);
-        root.append(button(`重试未成功的 ${failed.length} 题`, {
-          variant: 'ghost', onClick: () => retryFailed(failedIds),
-        }));
+        // 不能只报一个数：老师要知道是哪一条、为什么、接下来怎么办。
+        notify(`已入库 ${result.committed} 题，${failed.length} 题没成功，原因见下方。`, 'warn');
+        root.append(renderBatchFailures(failed));
+      } else {
+        notify(`已入库 ${result.committed} 题。`);
       }
       await refresh();
     } catch (error) {
-      notify(`批量确认失败：${error.message}，可逐题重试。`, 'error');
+      notify(`批量确认失败：${describeError(error)}，可逐题重试。`, 'error');
     }
+  }
+
+  // 一条失败就说一条：中文原因、后端给的机器码一个字都不往页面上放。
+  // 后端没给中文时也只给中文兜底，绝不让 SUBJECT_REQUIRED 这种码漏给老师。
+  function failureText(item) {
+    const text = typeof item?.message === 'string' ? item.message.trim() : '';
+    return text || '确认失败，原因不明：请在这条草稿上单独确认，看具体提示。';
+  }
+
+  function draftLabel(id) {
+    const item = drafts.find((d) => Number(d.id) === Number(id));
+    return item ? `第 ${item.seq} 题` : `草稿 #${id}`;
+  }
+
+  // 失败清单：逐条列出原因与处理办法，并只给「改完能再来一次」的失败配重试按钮。
+  // 状态类失败（已处理 / 已不存在）原样再试必然同样失败，给按钮就是死循环。
+  function renderBatchFailures(failed) {
+    const box = el('div', 'stack');
+    box.append(el('h3', '', `有 ${failed.length} 题没入库`));
+    for (const item of failed) {
+      const row = el('div', 'stack');
+      const head = el('div', 'row');
+      head.append(el('strong', '', `${draftLabel(item.id)}：${failureText(item)}`));
+      head.append(button('定位到这条', {
+        variant: 'ghost',
+        onClick: () => {
+          const target = document.getElementById(`draft-${item.id}`);
+          if (!target) return;
+          target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          target.focus();
+        },
+      }));
+      row.append(head);
+      box.append(row);
+    }
+    const retryable = failed.filter((item) => item.retryable === true);
+    if (retryable.length) {
+      box.append(button(`重试这 ${retryable.length} 题`, {
+        variant: 'ghost', onClick: () => retryFailed(retryable.map((item) => item.id)),
+      }));
+    } else {
+      box.append(el('p', 'muted', '这些失败重试也没用，请按上面的说明逐条处理。'));
+    }
+    return box;
   }
 
   async function refresh() {

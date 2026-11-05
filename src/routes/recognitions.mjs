@@ -7,6 +7,7 @@ import { EDITIONS } from '../lib/subjects.mjs';
 import { SUBJECTS, MANUAL_RETRY_LIMIT } from '../state-machine.mjs';
 import { ensureManualDraft } from '../ai/jobs.mjs';
 import { checkId, checkText, checkSubject, notFound, conflict, ValidationError } from '../lib/validation.mjs';
+import { draftFailure, draftFailureText } from '../lib/draft-failures.mjs';
 import { nowIso, today } from '../lib/dates.mjs';
 
 const TEXT_FIELDS = {
@@ -76,22 +77,22 @@ function withDrafts(db, jobRows) {
 // 教学法红线：correct_answer / student_conclusion 永不来自草稿，掌握证据与复习事件一概不写。
 function commitDraft(db, id, overrides = {}) {
   const draft = db.prepare('SELECT * FROM recognition_drafts WHERE id = ?').get(id);
-  if (!draft) notFound('草稿不存在');
+  if (!draft) notFound(draftFailureText('NOT_FOUND'));
   if (draft.status === 'committed' && draft.mistake_id) {
     const existing = db.prepare('SELECT id FROM mistakes WHERE id = ?').get(draft.mistake_id);
     if (existing) return { idempotent: true, mistakeId: existing.id, status: 200 };
   }
-  if (draft.status !== 'pending') conflict('该草稿已处理，不能重复入库');
+  if (draft.status !== 'pending') conflict(draftFailureText('INVALID_STATE'));
 
   const subject = overrides.subject ?? draft.subject;
   if (!SUBJECTS.includes(subject)) {
-    throw new ValidationError('请先选定科目再确认入库', 'SUBJECT_REQUIRED');
+    throw new ValidationError(draftFailureText('SUBJECT_REQUIRED'), 'SUBJECT_REQUIRED');
   }
   const prompt = String(overrides.prompt ?? draft.prompt ?? '').trim();
   if (!prompt) {
-    throw new ValidationError('题干为空，AI 没把握的字段请手填后再确认', 'PROMPT_REQUIRED');
+    throw new ValidationError(draftFailureText('PROMPT_REQUIRED'), 'PROMPT_REQUIRED');
   }
-  if (prompt.length > 2000) throw new ValidationError('题干超过 2000 字', 'TOO_LONG');
+  if (prompt.length > 2000) throw new ValidationError(draftFailureText('TOO_LONG'), 'TOO_LONG');
 
   const job = db.prepare('SELECT image_path FROM recognition_jobs WHERE id = ?').get(draft.job_id);
   const student = db.prepare('SELECT id FROM students ORDER BY id LIMIT 1').get();
@@ -329,7 +330,18 @@ export function createRecognitionsRouter({ db, dataDir, worker = null, aiStatus 
         const result = commitDraft(db, checkId(raw));
         return { id: raw, ok: true, mistakeId: result.mistakeId, idempotent: result.idempotent };
       } catch (error) {
-        return { id: raw, ok: false, reason: error.code || 'FAILED' };
+        // 失败不能只给一个数：老师要知道是哪一条、为什么、接下来怎么办。
+        // reason 是机器码（给程序看），message 是中文（给老师看），
+        // retryable 决定要不要给「重试」按钮——状态类失败原样再试必然同样失败。
+        const reason = error.code || 'FAILED';
+        const failure = draftFailure(reason);
+        return {
+          id: raw,
+          ok: false,
+          reason,
+          message: failure.text,
+          retryable: failure.retryable,
+        };
       }
     });
     res.json({ committed: results.filter((r) => r.ok && !r.idempotent).length, results });
