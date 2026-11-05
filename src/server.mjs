@@ -114,7 +114,9 @@ if (isMain) {
   const app = createApp({ db, dataDir, schedulerState: scheduler.state, recognitionWorker, aiStatus, aiControl });
   const port = Number(process.env.PORT || 8080);
   const server = app.listen(port, () => {
-    console.log(`[mistake-loop] http://0.0.0.0:${port} | ${new Date().toISOString()}`);
+    // 打真实绑定端口：PORT=0 时由内核分配，此时打印配置里的 0 会骗人。
+    const bound = server.address().port;
+    console.log(`[mistake-loop] http://0.0.0.0:${bound} | ${new Date().toISOString()}`);
   });
 
   const shutdown = () => {

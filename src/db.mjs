@@ -33,6 +33,14 @@ const V3_VARIANT_COLUMNS = [
 ];
 
 export function needsV3Migration(db) {
+  // 空库（全新安装）不是「老库缺列」：表都还没有，migrate() 会一次建到 v3。
+  // 这里必须先判表是否存在，否则 PRAGMA 空结果会被误读成缺列，
+  // 进而触发一次对空库的迁移备份，backup() 统计行数时 no such table 直接崩。
+  const tableExists = (table) => db.prepare(
+    "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+  ).get(table) !== undefined;
+  if (!tableExists('mistakes') || !tableExists('variants')) return false;
+
   const has = (table, col) => db.prepare(`PRAGMA table_info(${table})`).all().some((r) => r.name === col);
   return V3_MISTAKE_COLUMNS.some(([c]) => !has('mistakes', c))
     || V3_VARIANT_COLUMNS.some(([c]) => !has('variants', c));

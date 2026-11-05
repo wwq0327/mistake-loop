@@ -3,7 +3,7 @@
 | 项 | 值 |
 | --- | --- |
 | 仓库 | https://github.com/wwq0327/mistake-loop |
-| Issue 总数 | 77 |
+| Issue 总数 | 78 |
 | 生成依据 | `docs/requirements/PRD.md`（v2 增量 F15-F27 / U1-U8 / B1-B12）、`docs/plans/2026-11-04-v2-plan.md` 第九节 |
 | 校验命令 | `node scripts/check-issue-map.mjs`，由 `test/issue-map.test.mjs` 测试先行守护 |
 
@@ -91,6 +91,7 @@
 | #75 | P19 P19 AI 学习闭环 | F36 | [固定练习批次、纸面题号与任务对应](https://github.com/wwq0327/mistake-loop/issues/75) |
 | #76 | P19 P19 AI 学习闭环 | F37 | [分级学习结果、下一轮自动备题与延迟新题](https://github.com/wwq0327/mistake-loop/issues/76) |
 | #77 | P19 P19 AI 学习闭环 | F38/F39 | [单学生学习效率试运行与基于记录的周复盘](https://github.com/wwq0327/mistake-loop/issues/77) |
+| #78 | P17 P17 学习真实性与 v3 需求基线 | F28 补漏 / B10 | [全新安装启动即崩：空库被误判为需 v3 迁移，备份先于建表](https://github.com/wwq0327/mistake-loop/issues/78) |
 
 ## 阶段汇总
 
@@ -114,7 +115,7 @@
 | P15 P15 重复提交与静默失败硬化 | 5 |
 | P16 P16 方案 B：闭环看板 | 5 |
 
-| P17 学习真实性与 v3 需求基线 | 5 |
+| P17 学习真实性与 v3 需求基线 | 6 |
 | P18 AI 分析与备题闭环 | 4 |
 | P19 纸面任务与单学生试运行 | 3 |
 
