@@ -6,6 +6,7 @@
 //   2. 所有输出都是草稿：confirmed_at 为空即未确认，未确认内容不得进入练习与统计。
 //   3. 幂等身份 = 阶段:对象类型:对象 id:输入指纹；输入变了，旧任务作废但不删行。
 import { createHash } from 'node:crypto';
+import { normalizeAnalysis } from './analysis.mjs';
 
 export const STAGE_KINDS = ['analysis', 'practice', 'validation', 'delayed'];
 
@@ -193,8 +194,12 @@ export async function runTaskOnce({ db, provider, now = () => new Date().toISOSt
     .run('running', now(), task.id);
 
   try {
-    const output = await provider.runStage(buildInput(db, task));
-    const text = typeof output === 'string' ? output : JSON.stringify(output);
+    const input = buildInput(db, task);
+    const output = await provider.runStage(input);
+    // 分析草稿要先过清洗：空泛结论、凭空引用、一次问多个问题都在这里被标出来。
+    const text = task.kind === 'analysis'
+      ? JSON.stringify(normalizeAnalysis(output, { mistake: input.mistake, now: now() }))
+      : (typeof output === 'string' ? output : JSON.stringify(output));
     db.prepare("UPDATE ai_tasks SET status = 'done', result_json = ?, finished_at = ? WHERE id = ?")
       .run(text, now(), task.id);
 
