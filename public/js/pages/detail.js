@@ -10,6 +10,10 @@ const STATUS_INDEX = { new: 0, diagnosing: 1, correcting: 2, reviewing: 3, maste
 const SUBJECT_LABEL = { math: '数学', chinese: '语文', english: '英语' };
 const LEVELS = ['surface', 'structure', 'context'];
 const LEVEL_LABEL = { surface: '换数字（表面）', structure: '换角度（结构）', context: '换场景（情境）' };
+// #67 学生作答档位的中文名，与后端 STUDENT_RESULTS 一一对应。
+const ATTEMPT_LABEL = {
+  independent: '独立完成', hinted: '提示后完成', unmet: '未完成', unjudged: '暂未判断',
+};
 const CATEGORY_LABEL = {
   conceptual: '概念不清', procedural: '步骤出错', metacognitive: '策略习惯', factual: '知识遗忘',
 };
@@ -33,8 +37,13 @@ function nextRequirement(item) {
   if (item.status === 'diagnosing' && !conclusion) return '还差：学生自己说出的关键结论。没填之前不能进入「纠错中」，系统不会代填。';
   if (item.status === 'diagnosing') return '还差：确认学生结论后，才能推进到「纠错中」。';
   if (item.status === 'correcting') {
-    const pending = (item.variants || []).filter((v) => !v.reviewed).length;
-    return pending ? `还差：${pending} 条变式未经老师审核，审核通过后才进入复习。` : '还差：三层变式审核全部通过后，才能进入复习。';
+    // #67：审核与学生作答分开计数，差什么说清楚。
+    const noQuality = (item.variants || []).filter((v) => !v.reviewed).length;
+    const noAttempt = (item.variants || []).filter((v) => v.reviewed && !v.student_result).length;
+    if (!item.variants?.length) return '还差：先补齐三层变式，再逐条审核并登记学生作答。';
+    if (noQuality) return `还差：${noQuality} 条变式未经老师审核。审核通过后，还要登记学生作答结果。`;
+    if (noAttempt) return `还差：${noAttempt} 条变式还没登记学生作答。学生真实做完、独立做对才推进，提示后完成不算。`;
+    return '还差：学生关键结论与全部独立作答齐了才进复习。材料齐了会自动推进。';
   }
   if (item.status === 'reviewing') {
     if ((item.review_round ?? 0) < 4) return `还差：第 ${4 - (item.review_round ?? 0)} 轮复习，按 1-3-7-30 节奏推进。`;
@@ -322,21 +331,21 @@ export async function mount({ root, api }) {
   }
   diagnosis.append(gateRow);
 
-  // 三层变式审核 + 录入。
-  // 录入入口是闭环的关键一环：状态机要求三层全部审核通过才进「复习中」，
-  // 界面若只能审核不能录入，老师就永远走不到复习。
-  // 变式审核的闸门与后端一致：只有「诊断中」与「纠错中」能审核。
-  // 不是这两个状态就不给审核按钮——给了也只会被后端 409 拒回来。
+  // 三层变式审核 + 学生作答登记 + 录入。
+  // #67 起两条线分开：审核只回答「题目本身成立吗」，作答登记记录「学生这轮真实做出来了吗」。
+  // 推进复习需要三层质量通过 + 三层学生独立作答 + 学生关键结论非空。
+  // 变式操作的闸门与后端一致：只有「诊断中」与「纠错中」能操作。
+  // 不是这两个状态就不给按钮——给了也只会被后端 409 拒回来。
   const REVIEW_FROM = ['diagnosing', 'correcting'];
   const canReview = REVIEW_FROM.includes(item.status);
 
   const variants = bodyOf('detail-variants');
   variants.replaceChildren();
   if (!item.variants?.length) {
-    variants.append(empty('还没有变式', '每题补三条：换数字、换角度、换场景。补完逐条审核，三层都通过才进入复习。'));
+    variants.append(empty('还没有变式', '每题补三条：换数字、换角度、换场景。补完逐条审核，再登记学生作答，都齐了才进入复习。'));
   }
   if (!canReview && (item.variants || []).some((v) => !v.reviewed)) {
-    variants.append(el('p', 'field__hint', '变式审核要在「诊断中」或「纠错中」进行。先完成诊断、把题推进到能审核的状态，才能审核三层变式。'));
+    variants.append(el('p', 'field__hint', '变式审核要在「诊断中」或「纠错中」进行。先完成诊断、把题推进到能操作的状态，才能审核与登记。'));
   }
   const rules = meta?.variantRules?.[item.subject] ?? {};
   const existing = new Map((item.variants || []).map((v) => [v.level, v]));
@@ -344,10 +353,14 @@ export async function mount({ root, api }) {
     const found = existing.get(level);
     if (found) {
       const row = el('div', 'row');
+      const qualityLabel = found.reviewed ? (found.result === 'pass' ? '审核通过' : '审核未过') : '待审核';
+      const attemptLabel = found.student_result
+        ? `学生作答：${ATTEMPT_LABEL[found.student_result] || found.student_result}`
+        : '学生作答：未登记';
       row.append(
         el('span', 'small', LEVEL_LABEL[level]),
         el('span', 'grow small', found.prompt || '（待补）'),
-        el('span', 'small muted', found.reviewed ? `已审核 · ${found.result || ''}` : '待审核'),
+        el('span', 'small muted', `${qualityLabel} · ${attemptLabel}`),
       );
       if (!found.reviewed && canReview) {
         row.append(button('审核通过', {
@@ -355,9 +368,42 @@ export async function mount({ root, api }) {
           onClick: async () => {
             try {
               await api(`/api/variants/${found.id}/review`, { method: 'PATCH', body: { result: 'pass' } });
-              toast('变式已审核，生效并进入打印范围。');
+              toast('题目质量已审核。学生做完这轮后，记得登记作答结果。');
               await mount({ root, api });
             } catch (error) { toast(`审核失败：${error.message}`, 'error'); }
+          },
+        }));
+      }
+      if (found.reviewed && found.result === 'pass' && !found.student_result && canReview) {
+        // 作答档位无预选：老师看着学生做完再选，不替学生写结果。
+        const select = el('select', 'select');
+        const blank = el('option', '', '作答结果');
+        blank.value = '';
+        select.append(blank);
+        for (const [value, label] of Object.entries(ATTEMPT_LABEL)) {
+          const option = el('option', '', label);
+          option.value = value;
+          select.append(option);
+        }
+        select.value = '';
+        row.append(select);
+        row.append(button('登记作答', {
+          variant: 'ghost',
+          onClick: async () => {
+            if (!select.value) {
+              toast('先选学生这轮的真实作答结果。', 'error');
+              return;
+            }
+            try {
+              const out = await api(`/api/variants/${found.id}/attempt`, {
+                method: 'PATCH',
+                body: { result: select.value },
+              });
+              toast(out?.missing?.length
+                ? `已登记。还差：${out.missing.join('；')}。`
+                : '已登记，这一题进复习队列了。');
+              await mount({ root, api });
+            } catch (error) { toast(`登记失败：${error.message}`, 'error'); }
           },
         }));
       }

@@ -16,6 +16,8 @@ export const LEVELS = ['surface', 'structure', 'context'];
 export const EVIDENCE_KINDS = [
   'retell', 'same_structure_variant', 'spaced_recall', 'self_check_method', 'teach_others',
 ];
+// #67 学生本轮作答档位：独立完成 / 提示后完成 / 未完成 / 暂未判断。
+export const STUDENT_RESULTS = ['independent', 'hinted', 'unmet', 'unjudged'];
 
 // round -> 距今天数。第 4 轮做对但无证据时仍按 30 天再约一次，不卡死。
 export const INTERVALS = { 1: 1, 2: 3, 3: 7, 4: 30 };
@@ -66,9 +68,15 @@ export const DIAGNOSABLE_STATUSES = ['new', 'diagnosing', 'correcting'];
 // 「录入 → diagnosing → 审核三层 → reviewing」，这条既有测试一个都不能改。
 export const VARIANT_REVIEW_FROM = ['diagnosing', 'correcting'];
 
-// results: [{level, result}]，只接受已审核的变式。返回 null 表示暂不推进状态。
+// results: [{level, quality, student}]，quality 是质量审核结论，student 是学生本轮作答档位。
+// 兼容旧调用形状 {level, result}：result 视为 quality，缺 student 视为未登记作答。
+// 返回 null 表示暂不推进状态。
 // mistake 可选：传了就自己守闸门（规则的归属地在这里），
 // 不传则只做纯计算——v1 的状态机测试是这么调的，既有行为不能变。
+//
+// #67 推进条件（设计提案已确认）：
+//   三层质量全 pass + 三层学生作答全是 independent（只审核不推进、提示后不推进、未完成不推进）。
+//   学生关键结论非空的检查在路由层（要查库），状态机只认传入的作答结果。
 export function applyVariantResults({ mistake, results, today }) {
   if (mistake !== undefined && mistake !== null) {
     const status = mistake.status;
@@ -79,11 +87,16 @@ export function applyVariantResults({ mistake, results, today }) {
   const byLevel = new Map();
   for (const item of results) {
     if (!LEVELS.includes(item.level)) throw new Error(`invalid level: ${item.level}`);
-    if (!['pass', 'fail'].includes(item.result)) throw new Error(`invalid variant result: ${item.result}`);
-    byLevel.set(item.level, item.result);
+    const quality = item.quality ?? item.result;
+    if (!['pass', 'fail'].includes(quality)) throw new Error(`invalid variant result: ${quality}`);
+    if (item.student != null && !STUDENT_RESULTS.includes(item.student)) {
+      throw new Error(`invalid student result: ${item.student}`);
+    }
+    byLevel.set(item.level, { quality, student: item.student ?? null });
   }
-  if ([...byLevel.values()].includes('fail')) return resetToDiagnosing();
-  if (!LEVELS.every((level) => byLevel.get(level) === 'pass')) return null;
+  if ([...byLevel.values()].some((v) => v.quality === 'fail')) return resetToDiagnosing();
+  if (!LEVELS.every((level) => byLevel.has(level))) return null;
+  if (!LEVELS.every((level) => byLevel.get(level).student === 'independent')) return null;
   return {
     status: 'reviewing',
     review_round: 0,

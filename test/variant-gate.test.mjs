@@ -125,7 +125,8 @@ test('#52 被拦的审核不写 sessions 留痕', async () => {
   } finally { teardown(); }
 });
 
-test('#52 correcting 状态三层全过仍进复习中：正路不能被堵', async () => {
+test('#52 correcting 三层质量过 + 学生独立作答仍进复习中：正路不能被堵', async () => {
+  // #67 修订：只审核不再推进，必须逐条登记学生独立作答后才进复习。
   await setup();
   try {
     const id = makeMistakeWithVariants('correcting');
@@ -133,8 +134,13 @@ test('#52 correcting 状态三层全过仍进复习中：正路不能被堵', as
       const out = await call(`/api/variants/${v.id}/review`, { method: 'PATCH', body: { result: 'pass' } });
       assert.equal(out.status, 200, `correcting 状态审核应成功，实际 ${out.status}: ${out.text}`);
     }
+    assert.equal(statusOf(id), 'correcting', '#67：只审核不推进');
+    for (const v of variantsOf(id)) {
+      const out = await call(`/api/variants/${v.id}/attempt`, { method: 'PATCH', body: { result: 'independent' } });
+      assert.equal(out.status, 200, `登记作答应成功，实际 ${out.status}: ${out.text}`);
+    }
     const row = db.prepare('SELECT status, review_round, next_review FROM mistakes WHERE id = ?').get(id);
-    assert.equal(row.status, 'reviewing', '三层全过应进复习中');
+    assert.equal(row.status, 'reviewing', '三层独立作答后应进复习中');
     assert.equal(row.review_round, 0);
     assert.ok(row.next_review, '进复习中后应排下次复习日期');
   } finally { teardown(); }
@@ -161,7 +167,12 @@ test('#52 diagnosing 状态可以审核变式：v1 的接口流程走的就是�
       const out = await call(`/api/variants/${v.id}/review`, { method: 'PATCH', body: { result: 'pass' } });
       assert.equal(out.status, 200, `diagnosing 状态审核应成功，实际 ${out.status}: ${out.text}`);
     }
-    assert.equal(statusOf(id), 'reviewing', '三层全过应进复习中');
+    // #67：审核后还要登记学生独立作答，两层都齐才推进。
+    for (const v of variantsOf(id)) {
+      const out = await call(`/api/variants/${v.id}/attempt`, { method: 'PATCH', body: { result: 'independent' } });
+      assert.equal(out.status, 200, `登记作答应成功，实际 ${out.status}: ${out.text}`);
+    }
+    assert.equal(statusOf(id), 'reviewing', '审核加独立作答齐了应进复习中');
   } finally { teardown(); }
 });
 
@@ -183,10 +194,11 @@ test('#52 状态机自己也要守闸门：不能只靠路由层', async () => {
   // 路由层是唯一生产调用方，但状态机是规则的归属地：
   // 换个调用方（比如以后加个批量审核接口）如果绕过路由层，闸门就漏了。
   const DAY = '2026-11-05';
+  // #67：推进需要学生独立作答档位。
   const allPass = [
-    { level: 'surface', result: 'pass' },
-    { level: 'structure', result: 'pass' },
-    { level: 'context', result: 'pass' },
+    { level: 'surface', quality: 'pass', student: 'independent' },
+    { level: 'structure', quality: 'pass', student: 'independent' },
+    { level: 'context', quality: 'pass', student: 'independent' },
   ];
   assert.throws(
     () => applyVariantResults({ mistake: { status: 'new' }, results: allPass, today: DAY }),

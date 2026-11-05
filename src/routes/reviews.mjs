@@ -7,8 +7,8 @@ import {
 } from '../lib/validation.mjs';
 
 // #68 本轮证据的起点：一次「回落」把证据周期清零。
-// 回落有两种：复习登记为做错，或变式审核不过（后者直接打回诊断，轮次也归零）。
-// 取两者中较晚的时间戳——旧证据留在库里不删，但不再参与本轮的掌握判定。
+// 回落有三种：复习登记为做错、变式质量审核不过、学生变式作答未完成（unmet，#67）。
+// 取所有标记中较晚的时间戳——旧证据留在库里不删，但不再参与本轮的掌握判定。
 export function cycleStartedAt(db, mistakeId) {
   const wrong = db.prepare(
     "SELECT MAX(done_at) AS t FROM review_events WHERE mistake_id = ? AND result = 'wrong'",
@@ -16,7 +16,10 @@ export function cycleStartedAt(db, mistakeId) {
   const failedVariant = db.prepare(
     "SELECT MAX(attempted_at) AS t FROM variants WHERE mistake_id = ? AND result = 'fail'",
   ).get(mistakeId).t;
-  const marks = [wrong, failedVariant].filter(Boolean).sort();
+  const unmetVariant = db.prepare(
+    "SELECT MAX(student_verified_at) AS t FROM variants WHERE mistake_id = ? AND student_result = 'unmet'",
+  ).get(mistakeId).t;
+  const marks = [wrong, failedVariant, unmetVariant].filter(Boolean).sort();
   return marks.length ? marks[marks.length - 1] : null;
 }
 

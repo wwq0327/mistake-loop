@@ -109,7 +109,7 @@ describe('AI 路径的教学法红线', () => {
     assert.ok(!res.text.includes('scaffold_hint'), '打印响应含引导提示字段');
   });
 
-  it('v1 的 28 个回归测试仍全绿', () => {
+  it('v1 回归测试（含 #67 修订）仍全绿', () => {
     const v1Files = [
       'state-machine.test.mjs', 'db.test.mjs', 'scheduler.test.mjs',
       'api.test.mjs', 'import-legacy.test.mjs',
@@ -120,8 +120,9 @@ describe('AI 路径的教学法红线', () => {
     const result = spawnSync(process.execPath, ['--test', ...v1Files], { encoding: 'utf8', env });
     assert.equal(result.status, 0, `${result.stdout.slice(-400)}${result.stderr.slice(-200)}`);
     const summary = parseTestSummary(result.stdout);
-    assert.equal(summary.tests, 28, 'v1 用例数不是 28');
-    assert.equal(summary.pass, 28, 'v1 通过数不是 28');
+    // #67 在 state-machine.test.mjs 增补了 S11（未独立作答不推进），用例数 28 → 29。
+    assert.equal(summary.tests, 29, 'v1 用例数不是 29');
+    assert.equal(summary.pass, 29, 'v1 通过数不是 29');
     assert.equal(summary.fail, 0, 'v1 回归有失败用例');
   });
 });

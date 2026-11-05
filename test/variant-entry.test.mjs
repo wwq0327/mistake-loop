@@ -107,6 +107,11 @@ test('#40 三层变式逐条审核通过后，题进入「复习中」', async (
       const out = await call(`/api/variants/${v.id}/review`, { method: 'PATCH', body: { result: 'pass' } });
       assert.equal(out.status, 200);
     }
+    // #67：审核之后还要登记学生独立作答才推进。
+    for (const v of variants) {
+      const out = await call(`/api/variants/${v.id}/attempt`, { method: 'PATCH', body: { result: 'independent' } });
+      assert.equal(out.status, 200);
+    }
 
     const row = db.prepare('SELECT status, review_round, next_review FROM mistakes WHERE id = ?').get(id);
     assert.equal(row.status, 'reviewing', '三层全过应进入复习中');

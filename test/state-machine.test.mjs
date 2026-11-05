@@ -64,30 +64,39 @@ describe('状态机：1-3-7-30 与掌握闸门', () => {
 });
 
 describe('状态机：三层变式', () => {
+  // #67 起结果条目带两档：quality 是质量审核，student 是学生本轮作答。
+  // 旧形状 {level, result} 仍被兼容（result 视为 quality），但推进必须三档 student 都是 independent。
   const allPass = [
-    { level: 'surface', result: 'pass' },
-    { level: 'structure', result: 'pass' },
-    { level: 'context', result: 'pass' },
+    { level: 'surface', quality: 'pass', student: 'independent' },
+    { level: 'structure', quality: 'pass', student: 'independent' },
+    { level: 'context', quality: 'pass', student: 'independent' },
   ];
 
-  it('S4 任一层 fail 回诊断、轮次归零', () => {
+  it('S4 任一层质量 fail 回诊断、轮次归零', () => {
     const next = applyVariantResults({ results: [
-      { level: 'surface', result: 'pass' },
-      { level: 'structure', result: 'fail' },
-      { level: 'context', result: 'pass' },
+      { level: 'surface', quality: 'pass', student: 'independent' },
+      { level: 'structure', quality: 'fail', student: 'independent' },
+      { level: 'context', quality: 'pass', student: 'independent' },
     ], today: DAY });
     assert.deepEqual(next, { status: 'diagnosing', review_round: 0, next_review: null, mastered_at: null });
   });
 
-  it('S5 三层全 pass 进复习队列', () => {
+  it('S5 三层质量 pass 且三层独立作答才进复习队列', () => {
     const next = applyVariantResults({ results: allPass, today: DAY });
     assert.equal(next.status, 'reviewing');
     assert.equal(next.review_round, 0);
     assert.equal(next.next_review, addDays(DAY, 1));
   });
 
-  it('S6 只审核一层 pass 不推进状态', () => {
+  it('S6 只审核一层不推进状态', () => {
     assert.equal(applyVariantResults({ results: [allPass[0]], today: DAY }), null);
     assert.equal(applyVariantResults({ results: allPass.slice(0, 2), today: DAY }), null);
+  });
+
+  it('S11(#67) 三层审核全过但学生未独立作答不推进', () => {
+    for (const student of [null, 'hinted', 'unmet', 'unjudged']) {
+      const results = allPass.map((item) => ({ ...item, student }));
+      assert.equal(applyVariantResults({ results, today: DAY }), null, `student=${student} 不应推进`);
+    }
   });
 });

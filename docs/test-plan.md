@@ -133,4 +133,5 @@ v2 明确不测：真实云端模型准确率（需密钥与真实试卷，且�
 | Issue | 文件 | 关键断言 |
 | --- | --- | --- |
 | #68 | `test/evidence-validity.test.mjs` | 做错同时报证据整请求 400 且不落库；复发前的旧证据不参与本轮判定（第 4 轮做对仍排 30 天）；回落之后录入的证据可判掌握；变式审核不过同样清零周期；两个登记入口证据无预选、做错不带证据、不代填说明 |
+| #67 | `test/learning-validation-gate.test.mjs` + `test/migrate-v3.test.mjs` | 只审核三层不产生学生通过（状态不动、作答字段全空）；三层质量 pass + 三层 independent + 关键结论非空才进复习；hinted/unmet/unjudged 不推进；unmet 作为回落标记清零证据周期；存量审核不补造作答；migrateV3 幂等且默认值正确 |
 

@@ -113,6 +113,19 @@ describe('API 冒烟：真实 HTTP 全链路', () => {
       const reviewed = await call(`/api/variants/${item.id}/review`, { method: 'PATCH', body: { result: 'pass' } });
       assert.equal(reviewed.status, 200);
     }
+    // #67：质量审核不推进，学生独立作答齐了才进复习。
+    const afterReviewOnly = await call(`/api/mistakes/${id}`);
+    assert.equal(afterReviewOnly.data.status, 'diagnosing', '只审核不得推进状态（本题走 v1 的 diagnosing 流）');
+    // #67 总闸门：学生关键结论为空时，全部通过也不推进。先补上结论再登记作答。
+    const withConclusion = await call(`/api/mistakes/${id}/diagnosis`, {
+      method: 'PATCH',
+      body: { student_conclusion: '学生自己说：先算每份再算总数' },
+    });
+    assert.equal(withConclusion.status, 200, JSON.stringify(withConclusion.data));
+    for (const item of variants.data.variants) {
+      const attempt = await call(`/api/variants/${item.id}/attempt`, { method: 'PATCH', body: { result: 'independent' } });
+      assert.equal(attempt.status, 200);
+    }
     const afterReview = await call(`/api/mistakes/${id}`);
     assert.equal(afterReview.data.status, 'reviewing');
     assert.equal(afterReview.data.next_review, addDays(today(), 1));
