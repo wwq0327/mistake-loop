@@ -3,7 +3,7 @@
 | 项 | 值 |
 | --- | --- |
 | 仓库 | https://github.com/wwq0327/mistake-loop |
-| Issue 总数 | 60 |
+| Issue 总数 | 63 |
 | 生成依据 | `docs/requirements/PRD.md`（v2 增量 F15-F27 / U1-U8 / B1-B12）、`docs/plans/2026-11-04-v2-plan.md` 第九节 |
 | 校验命令 | `node scripts/check-issue-map.mjs`，由 `test/issue-map.test.mjs` 测试先行守护 |
 
@@ -73,6 +73,9 @@
 | #58 | P15 P15 重复提交与静默失败硬化 | U3 / 静默失败 | [前端异步动作的失败没有兜底：筛选失败列表停旧数据零提示，AI 状态读不到谎报「待确认草稿 0」](https://github.com/wwq0327/mistake-loop/issues/58) |
 | #59 | P15 P15 重复提交与静默失败硬化 | F19 / 静默失败 | [批量确认丢弃失败原因：老师不知道哪条错、为什么错，「重试未成功的 N 题」是死循环](https://github.com/wwq0327/mistake-loop/issues/59) |
 | #60 | P15 P15 重复提交与静默失败硬化 | F07 / 静默失败 | [打印页计数与预览可能对不上：刷新失败后仍可打印，印出的是旧题](https://github.com/wwq0327/mistake-loop/issues/60) |
+| #61 | P16 P16 方案 B：闭环看板 | F04 / F22–F24 / F27 / B3 | [工作台改为五态闭环看板，支持三科筛选与手机阶段切换](https://github.com/wwq0327/mistake-loop/issues/61) |
+| #62 | P16 P16 方案 B：闭环看板 | F03 / F21–F24 / B3 | [从看板进入题目详情，优先展示当前阶段动作](https://github.com/wwq0327/mistake-loop/issues/62) |
+| #63 | P16 P16 方案 B：闭环看板 | F04–F06 / F22 / F24 / F26 / B3 | [看板复习登记、状态回读与端到端验收](https://github.com/wwq0327/mistake-loop/issues/63) |
 
 ## 阶段汇总
 
@@ -94,5 +97,6 @@
 | P13 P13 断点扫除：闲置的后端能力接回界面 | 4 |
 | P14 P14 教学法闸门与接口契约硬化 | 4 |
 | P15 P15 重复提交与静默失败硬化 | 5 |
+| P16 P16 方案 B：闭环看板 | 3 |
 
 新增 Issue 时：同步更新 `scripts/check-issue-map.mjs` 的 `EXPECTED_COUNT`，重跑测试与校验脚本。README 与发布说明里的 Issue 总数、用例数由 `scripts/check-docs.mjs` 守着，写了就必须等于真实来源，不许手抄。

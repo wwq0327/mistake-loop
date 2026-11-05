@@ -114,7 +114,7 @@ docker compose up -d --build
 | 检查 | 结果 |
 | --- | --- |
 | `npm test` | 396 个用例全绿、0 失败（含文档静态检查、设计改版守护等分组用例）；v1 的 28 个测试一个未改 |
-| `npm run check` | 语法全通过；UI 静态违规 0（`html=6 css=5 js=11`）；src/ 色值守护 0 违规；接口可达性守护 25 条路由全部有前端入口或已写明豁免；Issue 映射 60 个编号齐全；视觉一致性机器判定 92/92 项通过（9 组）；文档链接与索引 PASS；文档里的数字与实际一致 |
+| `npm run check` | 语法全通过；UI 静态违规 0（`html=6 css=5 js=11`）；src/ 色值守护 0 违规；接口可达性守护 25 条路由全部有前端入口或已写明豁免；Issue 映射 63 个编号齐全；视觉一致性机器判定 92/92 项通过（9 组）；文档链接与索引 PASS；文档里的数字与实际一致 |
 | `node scripts/acceptance.mjs` | B1–B12：11 PASS / 0 FAIL / 1 待判断，退出码 0 |
 | 容器构建 | CI run 41860460740：多架构产物含 `linux/amd64` 与 `linux/arm64`；两个架构各真跑一次容器（非 root 用户 `node`、挂载 `/data`），`/health` 回读 `{"ok":true,"db":"ok"}`；只 build 不 push |
 | 六页可达 | 六处路由 `200/200/200/200/200/200`，`data-page` 6/6 |
@@ -148,7 +148,7 @@ docker compose up -d --build
 
 ## 九、开源协作方式
 
-**没有 Issue 的改动不进主分支。** 每个可独立验收的工作单元一个 Issue，写明验收标准与「先写哪个测试、红灯断言是什么」；阶段用 Milestone（P0–P15）组织，共 60 个 Issue，编号映射见 [issue-map.md](docs/github/issue-map.md)。
+**没有 Issue 的改动不进主分支。** 每个可独立验收的工作单元一个 Issue，写明验收标准与「先写哪个测试、红灯断言是什么」；阶段用 Milestone（P0–P16）组织，共 63 个 Issue，编号映射见 [issue-map.md](docs/github/issue-map.md)。
 
 每个 Issue 严格五步：写测试 → 跑一次确认红灯并贴输出 → 写实现 → `npm run check` 与 `npm test` 全绿 → 结果回读后提交 `Refs #N`、更新并关闭 Issue。AI 相关测试一律用本地假 provider，**不发外网、不需密钥**。
 
@@ -168,7 +168,7 @@ docker compose up -d --build
 | `docs/design/ui-preview.html` | v2 静态视觉稿，六屏对照靶子 |
 | `docs/dev-workflow.md` | 五步工作流与阶段红线 |
 | `docs/test-plan.md` | 测试分组、六组新增测试、未覆盖范围 |
-| `docs/github/issue-map.md` | 60 个 Issue 与需求编号映射 |
+| `docs/github/issue-map.md` | 63 个 Issue 与需求编号映射 |
 | `docs/handoffs/2026-11-04-project-kickoff-handoff.md` | 开工交接档案（历史） |
 | `docs/handoffs/2026-11-05-p16-closure-board-handoff.md` | P16 闭环看板开发交接（开发尚未开始） |
 | `docs/releases/2026-11-04-v2.md` | 本版发布说明：已完成、未验证、许可证与数据边界 |
