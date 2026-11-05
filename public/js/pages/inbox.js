@@ -1,6 +1,7 @@
 // 识别收件箱：左看原图（带相对坐标识别框），右逐题核对草稿。
 // 红线：AI 只把字填进草稿；任何入库动作都必须由老师点确认，走 commit 接口。
 import { el, card, stateTag, button, empty, alert, toast, link } from '../ui.js';
+import { guard } from '../errors.js';
 
 const SUBJECTS = [['', '请选择科目'], ['math', '数学'], ['chinese', '语文'], ['english', '英语']];
 const STATUS_LABEL = { pending: '待确认', committed: '已入库', discarded: '已丢弃' };
@@ -432,7 +433,8 @@ export async function mount({ root, api, state }) {
       const mark = job.id === currentId ? ' [当前]' : '';
       picker.append(button(`照片 #${job.id}${mark}`, {
         variant: job.id === currentId ? 'primary' : 'ghost',
-        onClick: async () => { currentId = job.id; await refresh(); },
+        // 切换照片是 async：失败时没人接，界面就停在旧照片上，像没点过（#58）。
+        onClick: guard(async () => { currentId = job.id; await refresh(); }, { notify }),
       }));
     }
   }

@@ -1,6 +1,7 @@
 // 题库：科目 / 状态 / 教材单元三档筛选，勾选后批量补教材定位。
 // 所有数字都来自实时查询（/api/meta + /api/mistakes），页面不手填计数。
 import { el, stateTag, link, empty, alert, toast } from '../ui.js';
+import { guard } from '../errors.js';
 
 const SUBJECTS = [['', '全部科目'], ['math', '数学'], ['chinese', '语文'], ['english', '英语']];
 const STATUSES = [['', '全部状态'], ['new', '待诊断'], ['diagnosing', '诊断中'], ['correcting', '纠错中'], ['reviewing', '复习中'], ['mastered', '已掌握']];
@@ -109,8 +110,10 @@ export async function mount({ root, api, toast: notify = toast }) {
     }
   }
 
+  // 筛选回调是 async：失败时没人接就变成静默的 unhandled rejection——
+  // 列表停在旧数据，老师只看到「点了没反应」。包一层，失败就说出来（#58）。
   for (const control of [subjectSelect, statusSelect, nodeSelect, pendingBox]) {
-    control.addEventListener('change', render);
+    control.addEventListener('change', guard(render, { notify }));
   }
 
   selectAllButton.addEventListener('click', () => {

@@ -1,5 +1,6 @@
 // 工作台：四个数字实时聚合、每个直达动作；今日复习按到期日排，做对做错与证据入口都在本页。
 import { el, stateTag, link, alert, button, toast } from '../ui.js';
+import { describeError } from '../api.js';
 
 const SUBJECT_LABEL = { math: '数学', chinese: '语文', english: '英语' };
 const STATUS_LABEL = { new: '待诊断', diagnosing: '诊断中', correcting: '纠错中', reviewing: '复习中', mastered: '已掌握' };
@@ -16,17 +17,19 @@ export async function mount({ root, api, state }) {
   const [meta, reviews, aiStatus] = await Promise.all([
     api('/api/meta'),
     api('/api/reviews/today'),
-    api('/api/ai/status').catch(() => ({ pendingDrafts: 0 })),
+    // 读不到就是「不知道」，不是 0。兜成 0 会在 KPI 上谎报「待确认草稿 0」，
+    // 老师会以为收件箱是空的——比报错更糟（#58）。
+    api('/api/ai/status').catch(() => null),
   ]);
   const kpis = {
-    pendingDrafts: aiStatus.pendingDrafts ?? state.pendingDrafts ?? 0,
+    pendingDrafts: aiStatus ? Number(aiStatus.pendingDrafts ?? 0) : null,
     today: reviews.total,
     overdue: meta.stats.overdue,
     awaitingTextbookRef: meta.stats.awaitingTextbookRef,
   };
   for (const [key, value] of Object.entries(kpis)) {
     const node = document.getElementById(`kpi-${key}`);
-    if (node) node.textContent = value;
+    if (node) node.textContent = value === null || value === undefined ? '未知' : value;
   }
 
   const actions = document.getElementById('workbench-actions');
@@ -55,8 +58,8 @@ export async function mount({ root, api, state }) {
       await mount({ root, api, state });
     } catch (error) {
       // 409 是「这次复习已经记过了」，不是记录失败：说人话，
-      // 别让老师以为自己没记上、又去点一次。
-      toast(error?.status === 409 ? '这次复习已经记过了，别重复点。' : `没能记录：${error.message}`, 'error');
+      // 别让老师以为自己没记上、又去点一次。其余状态按 describeError 分开说。
+      toast(describeError(error), 'error');
       for (const node of rowButtons) node.disabled = false;
     }
   }
