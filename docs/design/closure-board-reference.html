@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>错题循环 · 三套教师工作台</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font:15px/1.55 "PingFang SC","Microsoft YaHei",system-ui,sans-serif;color:var(--ink,#182137);background:var(--bg,#eff3f8)}button,select{font:inherit}button,a,select{touch-action:manipulation}button{cursor:pointer}button:focus-visible,a:focus-visible,select:focus-visible{outline:3px solid #da7a25;outline-offset:3px}button{color:inherit}h1,h2,h3,p{margin:0}small,.muted{color:var(--muted);font-size:13px}.mono,.kicker{font-family:ui-monospace,monospace;font-variant-numeric:tabular-nums}.kicker{font-size:12px;letter-spacing:.12em;font-weight:700}.switch{background:#141d30;color:#fff;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px max(16px,calc((100% - 1312px)/2));min-height:62px}.switch strong{white-space:nowrap;font-size:13px}.switch nav{display:flex;gap:5px;flex-wrap:wrap}.switch a{color:#cbd4e5;text-decoration:none;padding:8px 12px;border-radius:7px;font-size:13px;white-space:nowrap}.switch a[aria-current]{color:#142037;background:#f2f5ff}.switch span{font-size:12px;color:#b6c1d3;white-space:nowrap}
+#app{min-height:calc(100vh - 62px)}.a{--bg:#eff3f8;--ink:#172640;--muted:#53647a;--line:#dce4ef;--accent:#244dc0;--soft:#e8efff;--paper:#fff}.b{--bg:#edf4ef;--ink:#19362d;--muted:#50665c;--line:#cadbd0;--accent:#175840;--soft:#daeddf;--paper:#f9fcf9}.c{--bg:#eeedf5;--ink:#25223d;--muted:#5d5874;--line:#dbd6e9;--accent:#583c8e;--soft:#ebe2fa;--paper:#fdfcff}
+.product{background:var(--paper);border-bottom:1px solid var(--line)}.product-inner,.wrap{max-width:1360px;margin:auto;padding-inline:clamp(16px,4vw,56px)}.product-inner{min-height:70px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.brand{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:800;white-space:nowrap}.logo{display:grid;place-items:center;width:33px;height:33px;border-radius:9px;background:var(--accent);color:white;font-size:20px}.product nav,.controls,.actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.btn,.product button,.filter{border:1px solid var(--line);border-radius:8px;background:var(--paper);min-height:44px;padding:8px 14px;font-weight:650}.product button{border-color:transparent;background:none}.product button:hover,.filter:hover,.btn:hover{background:var(--soft)}.product button[aria-current],.filter[aria-pressed=true]{background:var(--soft);color:var(--accent)}.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}.btn.primary:hover{filter:brightness(1.13)}.wrap{padding-block:34px 56px}.heading{margin-bottom:24px}.heading h1{font-size:clamp(34px,5vw,58px);line-height:1.12;letter-spacing:-.055em;margin:8px 0 12px}.heading p{max-width:56ch;color:var(--muted)}.heading .kicker{color:var(--accent)}.panel{background:var(--paper);border:1px solid var(--line);border-radius:16px;min-width:0}.padded{padding:clamp(16px,2.5vw,30px)}.stack{display:grid;gap:12px}.spread{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.chip{display:inline-flex;align-items:center;gap:6px;border-radius:6px;padding:3px 8px;background:var(--soft);color:var(--accent);font-size:12px;font-weight:750;white-space:nowrap}.late{background:#fceae2;color:#873f23}.link{background:none;border:0;color:var(--accent);font-weight:750;padding:8px 0;min-height:44px}.question{text-align:left;line-height:1.45;font-weight:750}.empty{padding:26px 0;color:var(--muted)}.message{margin-top:12px;background:var(--soft);padding:12px 15px;border-radius:8px;color:var(--accent)}.field{display:grid;gap:7px;margin:14px 0}.field select{max-width:100%;min-height:44px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--paper);color:inherit}
+.agenda{display:grid;grid-template-columns:minmax(0,2.15fr) minmax(245px,1fr);gap:20px;align-items:start}.a .heading{padding:17px 24px;border-radius:14px;background:#1e3d91;color:white;display:flex;align-items:center;justify-content:space-between;gap:8px 16px;flex-wrap:wrap}.a .heading h1{font-size:clamp(27px,4vw,42px);margin:0;letter-spacing:-.04em}.a .heading time{color:#dee8ff;font-size:13px}.agenda-toolbar{margin-top:10px}.stage-picker{display:none}.result-notice:not(:empty){margin-bottom:14px}.result-notice .message{margin-top:0}.sheet li::marker{font-weight:700}.sheet li small{margin-left:8px}.list{margin-top:12px}.list-item{display:grid;grid-template-columns:66px minmax(0,1fr) auto;gap:13px;align-items:center;border-top:1px solid var(--line);padding:13px 0}.list-item time{font-size:13px}.sideblock{display:grid;gap:12px}.sideblock .btn{justify-self:start}.sideblock+.sideblock{margin-top:12px}.sideblock h3{font-size:18px}
+.b .heading h1{font-family:"Songti SC","Noto Serif CJK SC",serif;letter-spacing:-.045em}.b .heading{display:flex;align-items:end;justify-content:space-between;gap:14px;flex-wrap:wrap}.board{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;align-items:stretch}.lane{min-width:0;background:#e4eee7;border:1px solid var(--line);border-radius:12px;padding:10px;min-height:325px}.lane[data-stage="3"]{background:#d5e9db;border-color:#9fbfa9}.lane h2{font-size:16px}.lane-head{padding:8px 4px 14px;display:flex;align-items:center;justify-content:space-between;gap:4px}.ticket{width:100%;display:grid;gap:7px;text-align:left;border:1px solid var(--line);border-radius:8px;background:var(--paper);padding:12px;margin-bottom:8px;min-height:98px}.ticket:hover{border-color:var(--accent)}.ticket .chip{justify-self:start}.ticket small{font-size:12px}.lane-note{display:block;padding:6px 4px}.board-foot{margin-top:14px}
+.c .workspace{display:grid;grid-template-columns:minmax(220px,1fr) minmax(0,2.6fr);gap:16px;align-items:start}.queue{padding:15px}.queue h2{margin:0 6px 12px;font-size:18px}.queue .ticket{min-height:0}.queue .ticket[aria-current]{border-color:var(--accent);background:var(--soft);box-shadow:inset 3px 0 var(--accent)}.c .heading h1{font-size:clamp(32px,4vw,49px)}.focus{overflow:hidden}.focus-top{background:#2e2548;color:#fff;padding:18px 24px}.focus-top small{color:#e4d9fa}.focus-body{padding:clamp(16px,2.5vw,28px);display:grid;gap:16px}.paper{padding:20px;border:1px solid var(--line);border-radius:10px;background:var(--paper)}.paper h3{margin:10px 0 0;font-size:clamp(19px,2.4vw,27px);line-height:1.5}.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;list-style:none;margin:0;padding:0}.steps li{border-top:3px solid var(--line);padding:7px 2px 0;color:var(--muted);font-size:12px}.steps li[aria-current]{border-color:var(--accent);color:var(--accent);font-weight:800}.steps b{display:block;font-size:15px}
+dialog{color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:0;width:min(580px,calc(100% - 24px));max-height:90vh}dialog::backdrop{background:#11182b99}dialog .padded{display:grid;gap:13px}.sheet{border:1px solid var(--line);background:white;color:#202124;padding:22px;border-radius:8px}.sheet ol{margin-bottom:0;padding-left:24px}.sheet li{padding-bottom:12px}.close{border:1px solid var(--line);border-radius:8px;background:transparent;min-width:44px;min-height:44px}
+@media(max-width:900px){.board{grid-template-columns:repeat(3,minmax(0,1fr))}.lane{min-height:0}.agenda{grid-template-columns:1fr}.aside{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.sideblock+.sideblock{margin-top:0}}
+@media(max-width:620px){.switch{align-items:flex-start;flex-direction:column;gap:4px}.switch a{padding-inline:8px}.switch span{display:none}.product-inner{padding-block:10px;gap:4px}.product nav{gap:2px}.product button{padding-inline:9px}.wrap{padding-block:20px 36px}.heading{margin-bottom:15px}.a .heading{padding:12px 16px}.a .list-item{grid-template-columns:minmax(0,1fr) auto}.a .list-item time{grid-column:auto}.a .list-item>div{grid-row:1;grid-column:1}.a .list-item>.btn{grid-column:2;grid-row:1/span 2}.stage-picker{display:block;margin:0 0 12px}.board .lane:not([data-active]){display:none}.list-item{grid-template-columns:minmax(0,1fr) auto;gap:5px 10px}.list-item time{grid-column:1/-1}.list-item .btn{padding-inline:10px}.aside,.board{grid-template-columns:1fr}.c .workspace{grid-template-columns:1fr}.queue{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}.queue h2{grid-column:1/-1}.queue .ticket{padding:7px;margin:0}.queue .ticket small{font-size:11px}.queue .question{font-size:12px}}
+</style>
+</head>
+<body>
+<header class="switch"><strong>错题循环 · 设计预览</strong><nav aria-label="切换设计方案"><a href="#today">A 今日清单</a><a href="#board">B 闭环看板</a><a href="#focus">C 单题工作台</a></nav><span>虚构数据 · 交互原型</span></header>
+<main id="app"></main>
+<script>
+const samples = [
+  {id:11,s:'数学',ref:'四上 · 三位数乘两位数',title:'列竖式计算 126 × 24',due:'11.03',late:2,round:2,stage:3,guide:'第二行的 2 在哪个数位？'},
+  {id:12,s:'语文',ref:'四上 · 第五单元',title:'按事情发展的顺序复述《爬天都峰》',due:'11.05',round:4,stage:3,guide:'你能先说出事情发生的三个地点吗？'},
+  {id:13,s:'英语',ref:'四上 · Unit 4 My home',title:'用 Where is …? 询问钥匙的位置',due:'11.05',round:1,stage:3,guide:'先看看你要问的是一个物品还是多个物品。'},
+  {id:14,s:'英语',ref:'四上 · Unit 3 My friends',title:'用一句话描述人物外貌',stage:0},
+  {id:15,s:'数学',ref:'四上 · 角的度量',title:'用量角器读出图中的角度',stage:1},
+  {id:16,s:'语文',ref:'四上 · 第四单元',title:'找出《盘古开天地》的起因和经过',stage:2},
+  {id:17,s:'数学',ref:'四上 · 大数的认识',title:'说出 5030600 中每个数字的数位',stage:4}
+];
+const stages = ['待诊断','诊断中','纠错中','复习中','已掌握'];
+const evidence = ['复述','同结构变式','间隔提取','说出检查方法','讲给别人听'];
+const app = document.querySelector('#app');
+let filter='全部', focusScope='全部', activeStage=3, selected=11, mode='', records=new Map(), message='';
+const pending = () => samples.filter(x=>x.stage===3 && !records.has(x.id));
+const status = x => records.get(x.id)==='wrong' ? 1 : records.get(x.id)==='correct' && x.round===4 ? 4 : x.stage;
+const due = x => x.late ? '<span class="chip late">逾期 '+x.late+' 天</span>' : '<span class="chip">今天到期</span>';
+const btn = (label,action,primary=false) => '<button class="btn'+(primary?' primary':'')+'" data-action="'+action+'">'+label+'</button>';
+const heading = (k,t,p,extra='') => '<header class="heading"><div><div class="kicker">'+k+'</div><h1>'+t+'</h1><p>'+p+'</p></div>'+extra+'</header>';
+const product = () => '<div class="product"><div class="product-inner"><div class="brand"><span class="logo" aria-hidden="true">↻</span>错题循环</div><nav aria-label="原型导航"><button aria-current="page" data-action="home">'+({today:'今日',board:'阶段看板',focus:'逐题复习'}[mode])+'</button><button data-action="inbox">识别收件箱</button><button data-action="library">题库</button><button data-action="print">打印预览</button></nav><small>教师工作台</small></div></div>';
+const filters = () => '<div class="controls" aria-label="按学科筛选">'+['全部','数学','语文','英语'].map(s=>'<button class="filter" aria-pressed="'+(s===filter)+'" data-filter="'+s+'">'+s+'</button>').join('')+'</div>';
+const matches = (x, scope) => scope==='全部' || scope===x.s;
+const match = x => matches(x,filter);
+const forScope = scope => pending().filter(x=>matches(x,scope));
+const scopeLabel = scope => scope==='全部'?'全部学科':scope;
+const currentScope = () => mode==='focus'?focusScope:filter;
+const notice = () => '<div id="notice" class="result-notice" role="status">'+(message?'<p class="message">'+message+'</p>':'')+'</div>';
+const ticket = (x,focus=false) => '<button class="ticket" '+(focus && x.id===selected?'aria-current="true" ':'')+'data-action="'+(focus?'select':'open')+':'+x.id+'"><span class="chip">'+x.s+'</span><span class="question">'+x.title+'</span><small>'+ (x.stage===3&&!records.has(x.id)?(x.late?'逾期 '+x.late+' 天':'今天到期')+' · 第 '+x.round+' 轮':x.ref)+'</small></button>';
+function agenda(){
+  const queue=pending().filter(match);
+  const overdue=queue.filter(x=>x.late).length;
+  return '<header class="heading"><h1>今日复习清单</h1><time class="mono" datetime="2026-11-05">11 月 5 日 · 星期四</time></header>'+
+  '<div class="agenda"><section class="panel padded"><div class="spread"><div><h2>待复习 '+queue.length+' 道</h2><small>其中逾期 '+overdue+' 道 · 按原到期日排序</small></div>'+btn('预览'+(filter==='全部'?'':filter)+'练习纸 · '+queue.length+' 道','print',true)+'</div><div class="spread agenda-toolbar">'+filters()+(queue.length?btn('逐题登记','start-focus'):'')+'</div><div class="list">'+(queue.map(x=>'<article class="list-item"><time class="mono" datetime="2026-'+x.due.replace('.','-')+'">'+x.due+'</time><div><div class="question">'+x.title+'</div><small>'+x.s+' · 第 '+x.round+' 轮</small> '+due(x)+'</div>'+btn('登记结果','start-focus:'+x.id)+'</article>').join('')||'<p class="empty">这个学科没有待复习的题。</p>')+'</div></section><aside class="aside"><section class="panel padded sideblock"><div class="kicker">录入</div><h3>识别草稿 <span class="chip">1</span></h3><small>核对原图和题干后入库。</small>'+btn('查看草稿','inbox')+'</section><section class="panel padded sideblock"><div class="kicker">纠错</div><h3>待审核变式 <span class="chip">1</span></h3><small>检查题目是否保留原题的关键结构。</small>'+btn('查看变式','open:16')+'</section><section class="panel padded sideblock"><div class="kicker">归档</div><h3>教材定位待补 <span class="chip">1</span></h3>'+btn('查看题库','library')+'</section></aside></div>';
+}
+function board(){
+ const lanes=stages.map((label,i)=>({label,items:samples.filter(x=>match(x)&&status(x)===i)}));
+ return heading('教师工作台 / 按阶段查看','每道题走到哪了？','按当前阶段找到题目，再打开该阶段需要做的事。',filters())+
+ '<div class="stage-picker"><label class="field">查看阶段<select id="board-stage">'+lanes.map(({label,items},i)=>'<option value="'+i+'" '+(i===activeStage?'selected':'')+'>'+label+' · '+items.length+' 道</option>').join('')+'</select></label></div>'+
+ '<div class="board">'+lanes.map(({label,items},i)=>{
+   return '<section class="lane" data-stage="'+i+'" '+(i===activeStage?'data-active':'')+'><header class="lane-head"><h2>'+label+'</h2><span class="chip">'+items.length+'</span></header>'+(items.map(x=>ticket(x)).join('')||'<small class="lane-note">暂无题目</small>')+'</section>';
+ }).join('')+'</div><div class="board-foot spread"><small>同一道题只在当前阶段出现。登记复习做错后，回到诊断中。</small>'+btn('预览到期练习纸','print')+'</div>';
+}
+function review(x){
+ const stepDays=[1,3,7,30];
+ return '<ol class="steps" aria-label="复习间隔">'+stepDays.map((n,i)=>'<li '+(x.round===i+1?'aria-current="step"':'')+'><b>'+n+' 天</b>'+ (x.round===i+1?'本轮':x.round>i+1?'已完成':'待排期')+'</li>').join('')+'</ol>';
+}
+function resultActions(x){
+ return (x.round===4?'<label class="field">本轮做对时，选择一项实际观察到的掌握证据<select class="evidence"><option value="">选择掌握证据</option>'+evidence.map(v=>'<option>'+v+'</option>').join('')+'</select></label>':'')+
+ '<div class="actions">'+btn('登记做对','correct:'+x.id,true)+btn('登记做错','wrong:'+x.id)+'</div><small>由老师根据学生在纸上的表现登记。</small>';
+}
+function focusView(){
+ const queue=forScope(focusScope);
+ const x=queue.find(x=>x.id===selected)||queue[0];
+ if(x) selected=x.id;
+ return heading('教师工作台 / 逐题复习','先处理眼前这一题','当前范围：'+scopeLabel(focusScope)+' · '+queue.length+' 道待复习','<div class="actions">'+btn('返回今日清单','today')+btn('预览练习纸 · '+queue.length+' 道','print')+'</div>')+notice()+
+ '<div class="workspace"><aside class="panel queue"><h2>待复习 <span class="chip">'+queue.length+'</span></h2>'+queue.map(x=>ticket(x,true)).join('')+'</aside>'+
+ (x?'<section class="panel focus"><div class="focus-top spread" tabindex="-1"><strong>'+x.s+' · 第 '+x.round+' 轮</strong><small>'+x.ref+'</small></div><div class="focus-body"><div class="paper"><div class="spread"><span class="kicker">原题 / '+x.id+'</span>'+due(x)+'</div><h3>'+x.title+'</h3></div>'+review(x)+'<details><summary>查看教师提问提示</summary><p>'+x.guide+'</p></details>'+resultActions(x)+'</div></section>':'<section class="panel padded"><h2>当前范围没有待登记的题</h2></section>')+'</div>';
+}
+function render(){
+ mode=({today:'today',board:'board',focus:'focus'})[location.hash.slice(1)]||'today';
+ const theme={today:'a',board:'b',focus:'c'}[mode];
+ document.body.className=theme;
+ document.querySelectorAll('.switch a').forEach(a=>a.hash==='#'+mode?a.setAttribute('aria-current','page'):a.removeAttribute('aria-current'));
+ app.innerHTML=product()+'<div class="wrap">'+(mode==='focus'?'':notice())+({today:agenda,board,focus:focusView}[mode])()+'</div><dialog aria-labelledby="dialog-title"></dialog>';
+}
+function show(title,body){
+ const dialog=app.querySelector('dialog');
+ dialog.innerHTML='<div class="padded"><div class="spread"><h2 id="dialog-title">'+title+'</h2><form method="dialog"><button class="close" aria-label="关闭">×</button></form></div>'+body+'<div id="dialog-status" role="status"></div></div>';
+ if(!dialog.open) dialog.showModal();
+}
+function showItem(x){
+ const current=status(x);
+ const next=['写下学生原来的想法，再选择错因。','问学生最先卡在哪一步，记录他的说法。','对照原题，审核变式是否保留关键结构。','登记本轮纸笔复习的结果。','已有掌握证据，可回看原题。'];
+ show('题目详情','<div class="paper"><div class="spread"><small>'+x.s+' · '+x.ref+'</small><span class="chip">'+stages[current]+'</span></div><h3>'+x.title+'</h3></div><p>'+next[current]+'</p>'+
+ (current===3&&!records.has(x.id)?review(x)+resultActions(x):
+ x.id===16?'<div class="message"><strong>待审核 · 同结构变式</strong><p>读《精卫填海》，说说事情为什么发生、后来做了什么。</p></div>':''));
+}
+app.addEventListener('click',e=>{
+ const trigger=e.target.closest('button');
+ if(!trigger)return;
+ if(trigger.dataset.filter){filter=trigger.dataset.filter;render();app.querySelector('[aria-pressed=true]').focus();return;}
+ const [action,id]= (trigger.dataset.action||'').split(':');
+ const x=samples.find(v=>v.id===Number(id));
+ if(action==='home'){if(mode==='focus')focusScope='全部';else filter='全部';message='';render();app.querySelector('h1').setAttribute('tabindex','-1');app.querySelector('h1').focus();}
+ if(action==='select'){selected=x.id;message='';render();app.querySelector('.queue [aria-current]').focus();}
+ if(action==='open')showItem(x);
+ if(action==='today')location.hash='today';
+ if(action==='start-focus'||action==='preview-focus'){
+   focusScope=action==='preview-focus'&&id==='all'?'全部':currentScope();
+   selected=x?.id??forScope(focusScope)[0]?.id;
+   if(mode==='focus'){message='';render();focusCurrent();}
+   else location.hash='focus';
+ }
+ if(action==='print'||action==='print-all'){
+   const scope=action==='print-all'?'全部':currentScope();
+   const items=forScope(scope);
+   const actions=(scope==='全部'?'':btn('切换为全部学科','print-all'))+
+     (scope==='全部'&&currentScope()!=='全部'?btn('切回'+currentScope(),'print'):'')+
+     (items.length?btn('按此范围逐题登记','preview-focus'+(scope==='全部'?':all':''),true):'');
+   show('练习纸预览','<p><strong>'+scopeLabel(scope)+' · '+items.length+' 道</strong></p><div class="sheet"><small>学生版 · A4 版面示意</small><h3>今日复习练习</h3><p>姓名 __________________</p>'+(items.length?'<ol>'+items.map(v=>'<li>'+v.title+'<small>题号 '+v.id+'</small><br><br>________________________________</li>').join('')+'</ol>':'<p>这个范围没有待复习的题。</p>')+'</div><div class="actions">'+actions+'</div>');
+ }
+ if(action==='inbox')show('识别收件箱','<p class="muted">示例草稿 · 待教师确认</p><div class="paper"><small>数学 · 四上</small><h3>用量角器量出 ∠A 的度数。</h3><p>待核对字段：图中角的标记</p></div>');
+ if(action==='library')show('题库','<div class="stack">'+samples.map(v=>ticket(v)).join('')+'</div>');
+ if(action==='correct'||action==='wrong'){
+   const dialog=trigger.closest('dialog');
+   const field=(dialog||app).querySelector('.evidence');
+   if(action==='correct'&&x.round===4&&!field.value){
+     const note=dialog?.querySelector('#dialog-status')||document.querySelector('#notice');
+     note.innerHTML='<p class="message">请先选择一项掌握证据。</p>';
+     field.focus();return;
+   }
+   const queue=forScope(focusScope);
+   const index=queue.indexOf(x);
+   if(index>=0) selected=(queue[index+1]||queue[index-1])?.id;
+   records.set(x.id,action);
+   const prefix='已登记第 '+x.id+' 题';
+   message=action==='wrong'?prefix+'做错，回到诊断中。':x.round===4?prefix+'做对，已记录掌握证据：'+field.value+'。':prefix+'做对，等待下一轮复习。';
+   render();focusCurrent();
+ }
+});
+function focusCurrent(){
+ const target=app.querySelector('#notice:not(:empty)')||app.querySelector('.focus-top')||app.querySelector('h1');
+ target.tabIndex=-1;
+ target.focus();
+}
+app.addEventListener('change',e=>{
+ if(e.target.id!=='board-stage')return;
+ activeStage=Number(e.target.value);
+ app.querySelectorAll('.lane').forEach(lane=>lane.toggleAttribute('data-active',Number(lane.dataset.stage)===activeStage));
+});
+window.addEventListener('hashchange',()=>{message='';render();focusCurrent();});
+render();
+</script>
+</body>
+</html>
