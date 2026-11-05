@@ -16,6 +16,37 @@ export function openDb(path = ':memory:') {
 export function migrate(db) {
   db.exec(readFileSync(join(here, 'schema.sql'), 'utf8'));
   migrateV2(db);
+  migrateV3(db);
+}
+
+// v3（P17 设计提案已确认）：variants 学生验证三列 + mistakes 干净题面两列。
+// 与 v2 同纪律：纯增量列、PRAGMA 检查后幂等 ALTER、不删表不改旧列；
+// 存量行不补造学生作答（新列全 NULL / 默认 0）。
+const V3_MISTAKE_COLUMNS = [
+  ['clean_image_path', 'TEXT'],
+  ['sheet_image_ok', 'INTEGER NOT NULL DEFAULT 0 CHECK (sheet_image_ok IN (0,1))'],
+];
+const V3_VARIANT_COLUMNS = [
+  ['student_result', "TEXT CHECK (student_result IN ('independent','hinted','unmet','unjudged'))"],
+  ['student_note', 'TEXT'],
+  ['student_verified_at', 'TEXT'],
+];
+
+export function needsV3Migration(db) {
+  const has = (table, col) => db.prepare(`PRAGMA table_info(${table})`).all().some((r) => r.name === col);
+  return V3_MISTAKE_COLUMNS.some(([c]) => !has('mistakes', c))
+    || V3_VARIANT_COLUMNS.some(([c]) => !has('variants', c));
+}
+
+export function migrateV3(db) {
+  const apply = (table, columns) => {
+    const existing = db.prepare(`PRAGMA table_info(${table})`).all().map((r) => r.name);
+    for (const [name, definition] of columns) {
+      if (!existing.includes(name)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${definition}`);
+    }
+  };
+  apply('mistakes', V3_MISTAKE_COLUMNS);
+  apply('variants', V3_VARIANT_COLUMNS);
 }
 
 // v2 幂等升级：建新表 + 给已有 mistakes 补溯源列。

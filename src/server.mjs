@@ -2,7 +2,7 @@ import express from 'express';
 import { mkdirSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { openDb, migrate, closeDb } from './db.mjs';
+import { openDb, migrate, needsV3Migration, closeDb } from './db.mjs';
 import { startScheduler } from './scheduler.mjs';
 import { nowIso, today } from './lib/dates.mjs';
 import { createMetaRouter } from './routes/meta.mjs';
@@ -76,6 +76,12 @@ if (isMain) {
   mkdirSync(join(dataDir, 'images'), { recursive: true });
 
   const db = openDb(join(dataDir, 'mistakes.db'));
+  // 迁移纪律：检测到缺列先自动备份再升级（v3 设计提案确认项）。
+  if (needsV3Migration(db)) {
+    const { backup } = await import('../scripts/backup.mjs');
+    const result = backup({ dataDir, outputDir: join(dataDir, 'backups') });
+    console.log(`[mistake-loop] v3 迁移前已自动备份：${result.target}`);
+  }
   migrate(db);
   db.prepare("INSERT OR IGNORE INTO students (id, name, created_at) VALUES (1, '默认学生', ?)")
     .run(nowIso());

@@ -54,6 +54,8 @@ CREATE TABLE IF NOT EXISTS mistakes (
   student_conclusion  TEXT,
   legacy_notes        TEXT,
   geometry_spec       TEXT,
+  clean_image_path    TEXT,
+  sheet_image_ok      INTEGER NOT NULL DEFAULT 0 CHECK (sheet_image_ok IN (0,1)),
   status              TEXT NOT NULL DEFAULT 'new'
                       CHECK (status IN ('new','diagnosing','correcting','reviewing','mastered')),
   review_round        INTEGER NOT NULL DEFAULT 0 CHECK (review_round BETWEEN 0 AND 4),
@@ -79,6 +81,11 @@ CREATE TABLE IF NOT EXISTS variants (
   reviewed       INTEGER NOT NULL DEFAULT 0 CHECK (reviewed IN (0,1)),
   result         TEXT CHECK (result IN ('pass','fail')),
   attempted_at   TEXT,
+  -- v3（#67）：质量审核与学生验证分离。reviewed/result 只表示题目质量审核，
+  -- 学生本轮真实作答单独记录；存量行不补造作答。
+  student_result      TEXT CHECK (student_result IN ('independent','hinted','unmet','unjudged')),
+  student_note        TEXT,
+  student_verified_at TEXT,
   UNIQUE (mistake_id, level, source_ref)
 );
 
