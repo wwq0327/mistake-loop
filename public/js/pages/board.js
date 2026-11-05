@@ -264,7 +264,8 @@ export async function mountBoard({ root, api }) {
     busy.add(item.id);
     for (const node of buttons) node.disabled = true;
     const body = { result, due_on: item.next_review };
-    if (evidenceType) body.evidence_type = evidenceType;
+    // 证据只跟「做对」提交：做错时后端整请求拒掉（#68）。
+    if (result === 'correct' && evidenceType) body.evidence_type = evidenceType;
 
     try {
       await api(`/api/reviews/${item.id}/result`, { method: 'POST', body });

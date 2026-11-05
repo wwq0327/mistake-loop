@@ -54,10 +54,15 @@ export async function mount({ root, api, state }) {
     // #56：带上这道题「这次复习」的到期日——它是这次复习的身份。
     // 后端拿它判重，同一次复习只记一遍；不带的话后端分不清「连点两下」与「连做多轮」。
     if (item.next_review) body.due_on = item.next_review;
-    if (result === 'correct' && (item.review_round ?? 0) >= 3 && evidenceSelect?.value) {
-      body.evidence_type = evidenceSelect.value;
-      body.evidence_note = '老师在复习现场记录的学生证据';
+    // #68：证据只跟「做对」一起走。做错时后端整请求拒掉，前端先在本地拦住，
+    // 不把注定被拒的请求发出去；也不代填证据说明——那是老师的观察，不是系统的话。
+    const needsEvidence = resultNeedsEvidence(item);
+    const evidenceType = result === 'correct' ? (evidenceSelect?.value ?? '') : '';
+    if (result === 'correct' && needsEvidence && !evidenceType) {
+      toast(`第 ${item.id} 题要记做对，先选一条你观察到的掌握证据。`, 'error');
+      return;
     }
+    if (evidenceType) body.evidence_type = evidenceType;
     // 请求在飞时把这一行的两个按钮都置灰：老师手快连点两下不该记成两轮。
     // 与后端的 due_on 判重是两道独立的防线——置灰防的是「还没发出去的那一下」，
     // due_on 防的是「已经发出去两次」。
@@ -99,11 +104,17 @@ export async function mount({ root, api, state }) {
       label.htmlFor = `evidence-${item.id}`;
       evidenceSelect = el('select', 'select');
       evidenceSelect.id = `evidence-${item.id}`;
+      // 与看板同一套：第一项是空占位，不预选任何一条。
+      // 预选「复述」等于替老师填了一条没观察到的证据（#68）。
+      const blank = el('option', '', '请选择观察到的证据');
+      blank.value = '';
+      evidenceSelect.append(blank);
       for (const kind of meta.evidenceKinds || Object.keys(EVIDENCE_LABEL)) {
         const option = el('option', '', EVIDENCE_LABEL[kind] || kind);
         option.value = kind;
         evidenceSelect.append(option);
       }
+      evidenceSelect.value = '';
       field.append(label, evidenceSelect);
       row.append(field);
     }

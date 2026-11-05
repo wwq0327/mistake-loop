@@ -3,8 +3,33 @@ import { withTransaction } from '../db.mjs';
 import { today, nowIso, daysBetween } from '../lib/dates.mjs';
 import { applyReview } from '../state-machine.mjs';
 import {
-  checkId, checkResult, checkEvidence, checkText, checkDate, notFound, conflict,
+  assert, checkId, checkResult, checkEvidence, checkText, checkDate, notFound, conflict,
 } from '../lib/validation.mjs';
+
+// #68 本轮证据的起点：一次「回落」把证据周期清零。
+// 回落有两种：复习登记为做错，或变式审核不过（后者直接打回诊断，轮次也归零）。
+// 取两者中较晚的时间戳——旧证据留在库里不删，但不再参与本轮的掌握判定。
+export function cycleStartedAt(db, mistakeId) {
+  const wrong = db.prepare(
+    "SELECT MAX(done_at) AS t FROM review_events WHERE mistake_id = ? AND result = 'wrong'",
+  ).get(mistakeId).t;
+  const failedVariant = db.prepare(
+    "SELECT MAX(attempted_at) AS t FROM variants WHERE mistake_id = ? AND result = 'fail'",
+  ).get(mistakeId).t;
+  const marks = [wrong, failedVariant].filter(Boolean).sort();
+  return marks.length ? marks[marks.length - 1] : null;
+}
+
+// 只数本轮证据。时间戳统一是 ISO 8601，可直接按字符串比大小。
+export function countCycleEvidence(db, mistakeId) {
+  const since = cycleStartedAt(db, mistakeId);
+  if (!since) {
+    return db.prepare('SELECT COUNT(*) c FROM mastery_evidence WHERE mistake_id = ?').get(mistakeId).c;
+  }
+  return db.prepare(
+    'SELECT COUNT(*) c FROM mastery_evidence WHERE mistake_id = ? AND created_at > ?',
+  ).get(mistakeId, since).c;
+}
 
 export function createReviewsRouter({ db }) {
   const router = Router();
@@ -27,6 +52,14 @@ export function createReviewsRouter({ db }) {
     const id = checkId(req.params.id);
     const body = req.body ?? {};
     const result = checkResult(body.result);
+    // #68 契约：做错时带证据整请求拒掉，不写库。
+    // 「默默忽略」看起来更宽容，实际会让老师以为自己记上了证据——
+    // 证据是以后判掌握的依据，宁可当场报错，也不收下一张空头支票。
+    assert(
+      !(result === 'wrong' && body.evidence_type),
+      '做错了不能同时记掌握证据：证据只跟「做对」一起提交。',
+      'EVIDENCE_NOT_ALLOWED',
+    );
     const evidenceType = body.evidence_type ? checkEvidence(body.evidence_type) : null;
     const note = checkText(body.note, '备注');
     const evidenceNote = checkText(body.evidence_note, '证据说明');
@@ -53,11 +86,12 @@ export function createReviewsRouter({ db }) {
             : '这道题没有排期，不能记复习结果。');
         }
       }
-      let evidenceCount = db.prepare('SELECT COUNT(*) c FROM mastery_evidence WHERE mistake_id = ?').get(id).c;
+      let evidenceCount = countCycleEvidence(db, id);
       if (evidenceType) {
         db.prepare(`
           INSERT INTO mastery_evidence (mistake_id, kind, note, created_at) VALUES (?, ?, ?, ?)
         `).run(id, evidenceType, evidenceNote, now);
+        // 刚写进去的这条也在本周期里——直接加一，避免再查一遍。
         evidenceCount += 1;
       }
       const computed = applyReview({ mistake: current, result, today: date, evidenceCount });
