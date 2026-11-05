@@ -10,10 +10,19 @@ import { spawn } from 'node:child_process';
 import { mkdtempSync, mkdirSync, rmSync, existsSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { createServer } from 'node:net';
 import { fileURLToPath } from 'node:url';
 import { openDb, migrate, needsV3Migration, closeDb } from '../src/db.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
+
+// 子进程不是测试运行器：带着 NODE_TEST_CONTEXT 启动会进入测试上下文，
+// 表现为子进程既不打印也不退出（全量并行跑时必现）。
+function cleanEnv() {
+  const env = { ...process.env };
+  delete env.NODE_TEST_CONTEXT;
+  return env;
+}
 
 test('#67 空库不算「需要 v3 迁移」：没有旧数据可备份', () => {
   const db = openDb(':memory:');
@@ -28,7 +37,7 @@ test('#67 全新 data 目录能被服务真实拉起：健康检查通过且没�
   mkdirSync(join(dataDir, 'images'), { recursive: true });
   const child = spawn(process.execPath, ['src/server.mjs'], {
     cwd: ROOT,
-    env: { ...process.env, DATA_DIR: dataDir, PORT: '0' },
+    env: { ...cleanEnv(), DATA_DIR: dataDir, PORT: '0' },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 
@@ -38,7 +47,7 @@ test('#67 全新 data 目录能被服务真实拉起：健康检查通过且没�
 
   try {
     const port = await new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error(`服务 10 秒内没起来。stdout=${out} stderr=${err}`)), 10000);
+      const timer = setTimeout(() => reject(new Error(`服务 30 秒内没起来。stdout=${out} stderr=${err}`)), 30000);
       child.stdout.on('data', (chunk) => {
         out += chunk;
         const m = out.match(/http:\/\/0\.0\.0\.0:(\d+)/);
@@ -67,6 +76,47 @@ test('#67 全新 data 目录能被服务真实拉起：健康检查通过且没�
   } finally {
     child.kill('SIGTERM');
     await exited;
+    rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
+// 端口被占用时必须说人话：以前 listen 回调里读 server.address().port，
+// 失败时 address() 是 null，直接 TypeError: Cannot read properties of null，
+// 真正的 EADDRINUSE 被埋掉，用户只看到一段栈。
+test('#78 端口被占用：明确退出并说清楚是端口占用，不抛 TypeError', async () => {
+  // 占位要用和 app.listen(port) 相同的通配族（默认 ::）。
+  // 只占 0.0.0.0 在 macOS 上允许 IPv6 通配再绑同一端口，冲突就复现不出来。
+  const blocker = createServer();
+  // 占位必须和 app.listen(port) 的默认通配族一致，故意不传 host。
+  await new Promise((resolve) => blocker.listen(0, resolve)); // allow-default-listen：对照样本，需默认通配族
+  const port = blocker.address().port;
+
+  const dataDir = mkdtempSync(join(tmpdir(), 'ml-port-'));
+  mkdirSync(join(dataDir, 'images'), { recursive: true });
+  const child = spawn(process.execPath, ['src/server.mjs'], {
+    cwd: ROOT,
+    env: { ...cleanEnv(), DATA_DIR: dataDir, PORT: String(port) },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+
+  let out = '';
+  let err = '';
+  child.stdout.on('data', (c) => { out += c; });
+  child.stderr.on('data', (c) => { err += c; });
+
+  try {
+    const code = await new Promise((resolve) => {
+      // 全量并行跑时子进程启动会到 8s 上下（24 个测试文件同时 spawn），留足余量。
+      const timer = setTimeout(() => resolve('timeout'), 30000);
+      child.once('exit', (c) => { clearTimeout(timer); resolve(c); });
+    });
+    assert.notEqual(code, 'timeout', `端口冲突时进程应当退出。stdout=${out} stderr=${err}`);
+    assert.notEqual(code, 0, '端口冲突不是正常退出');
+    assert.ok(!/TypeError/.test(err), `不该以 TypeError 收场：${err}`);
+    assert.ok(/端口.*占用|EADDRINUSE/.test(out + err), `要说明是端口被占用：${out}${err}`);
+  } finally {
+    if (child.exitCode === null) child.kill('SIGKILL');
+    await new Promise((resolve) => blocker.close(resolve));
     rmSync(dataDir, { recursive: true, force: true });
   }
 });

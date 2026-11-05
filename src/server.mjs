@@ -114,9 +114,20 @@ if (isMain) {
   const app = createApp({ db, dataDir, schedulerState: scheduler.state, recognitionWorker, aiStatus, aiControl });
   const port = Number(process.env.PORT || 8080);
   const server = app.listen(port, () => {
-    // 打真实绑定端口：PORT=0 时由内核分配，此时打印配置里的 0 会骗人。
-    const bound = server.address().port;
-    console.log(`[mistake-loop] http://0.0.0.0:${bound} | ${new Date().toISOString()}`);
+    // 绑定失败时监听回调同样会被调用，而 address() 是 null：
+    // 这里必须先判空，否则一个 TypeError 会把真正的 EADDRINUSE 埋掉。
+    const address = server.address();
+    if (!address) return;
+    // 打真实绑定端口：PORT=0 时由内核分配，打印配置里的 0 会骗人。
+    console.log(`[mistake-loop] http://0.0.0.0:${address.port} | ${new Date().toISOString()}`);
+  });
+  server.on('error', (err) => {
+    if (err?.code === 'EADDRINUSE') {
+      console.error(`[mistake-loop] 端口 ${port} 已被占用：换一个 PORT，或先停掉占用它的进程。`);
+    } else {
+      console.error(`[mistake-loop] 启动失败：${err?.message ?? err}`);
+    }
+    process.exit(1);
   });
 
   const shutdown = () => {
