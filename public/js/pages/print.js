@@ -62,6 +62,10 @@ export async function mount({ root, api, toast: notify = toast }) {
         'error',
       ));
     }
+    // #70：缺净图的需图题被明确挡下，单独列出来让老师知道少了谁、为什么。
+    for (const item of sheet.blocked || []) {
+      previewBox.append(alert(`第 ${item.id} 题没有上纸：${item.reason}`, 'warn'));
+    }
     if (!sheet.cards || sheet.cards.length === 0) {
       previewBox.append(empty('没有可打印的题', '今天没有到期的复习题，也可以在上面勾选几道。'));
       return;

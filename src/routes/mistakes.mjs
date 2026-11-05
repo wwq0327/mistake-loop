@@ -244,5 +244,32 @@ export function createMistakesRouter({ db, dataDir }) {
     res.json(db.prepare('SELECT * FROM mistakes WHERE id = ?').get(id));
   });
 
+  // #70 上纸确认：净图上传 / 确认原图可上纸 / 撤销，都是显式教师事件。
+  // 路径只能由服务端生成，调用方给的 clean_image_path 一律不采信；
+  // 原图永远保留，撤销只是回到「默认不上纸」。
+  router.post('/mistakes/:id/sheet-image', (req, res) => {
+    const id = checkId(req.params.id);
+    const body = req.body ?? {};
+    if (!db.prepare('SELECT id FROM mistakes WHERE id = ?').get(id)) notFound('错题不存在');
+    const actions = ['image', 'confirm_original', 'revoke'].filter((k) => body[k] !== undefined && body[k] !== false);
+    assert(actions.length === 1, '一次只做一件事：上传净图（image）、确认原图（confirm_original）或撤销（revoke）', 'INVALID_ACTION');
+    if (body.clean_image_path !== undefined || body.sheet_image_ok !== undefined) {
+      assert(false, '图片路径与确认状态只能由服务端写入，不接受直接指定', 'INVALID_FIELD');
+    }
+
+    const now = nowIso();
+    if (body.image !== undefined && body.image !== false) {
+      const cleanPath = saveImage(body.image, dataDir);
+      db.prepare('UPDATE mistakes SET clean_image_path = ?, sheet_image_ok = 0, updated_at = ? WHERE id = ?')
+        .run(cleanPath, now, id);
+    } else if (body.confirm_original) {
+      db.prepare('UPDATE mistakes SET sheet_image_ok = 1, updated_at = ? WHERE id = ?').run(now, id);
+    } else {
+      db.prepare('UPDATE mistakes SET clean_image_path = NULL, sheet_image_ok = 0, updated_at = ? WHERE id = ?')
+        .run(now, id);
+    }
+    res.json(db.prepare('SELECT id, image_path, clean_image_path, sheet_image_ok FROM mistakes WHERE id = ?').get(id));
+  });
+
   return router;
 }

@@ -31,13 +31,14 @@ const MOBILE_QUERY = '(max-width: 767px)';
 // 题库查询的服务端上限：返回条数撞上这个数就说明可能还有没拿回来的。
 const LIST_LIMIT = 500;
 
-// 掌握证据的中文名。服务端 /api/meta 下发可用的类型，这里只管怎么念。
+// 掌握证据的中文名。键与服务端 /api/meta 下发的 EVIDENCE_KINDS 必须一一对应，
+// 否则下拉框会整排显示英文原键（#68 回读时发现的历史笔误，顺手修正）。
 const EVIDENCE_LABEL = {
   retell: '复述',
-  transfer: '同结构变式',
-  spaced: '间隔提取',
-  check_method: '说出检查方法',
-  teach: '讲给别人听',
+  same_structure_variant: '同结构变式',
+  spaced_recall: '间隔提取',
+  self_check_method: '说出检查方法',
+  teach_others: '讲给别人听',
 };
 
 // review_round 记的是「已经做完几轮」，所以第 4 轮做对时它是 3。

@@ -191,6 +191,76 @@ export async function mount({ root, api }) {
   );
   basics.append(facts);
 
+  // #70 上纸确认：原图默认不上学生版；净图 > 确认原图 > 不出图。
+  // 这是显式教师事件，状态与动作都摆在这里，不藏进打印页。
+  const sheetImageBox = el('div', 'stack');
+  const sheetState = item.clean_image_path
+    ? '学生版将使用已确认的净图。'
+    : item.sheet_image_ok
+      ? '学生版将使用你确认过无作答痕迹的原图。'
+      : '原图默认不上学生版（防止作答与红笔痕迹印给学生）。';
+  sheetImageBox.append(el('p', 'small muted', `学生版出图：${sheetState}`));
+  const sheetActions = el('div', 'row');
+  if (item.clean_image_path) {
+    const revokeClean = button('撤销净图', {
+      variant: 'ghost',
+      onClick: async () => {
+        try {
+          await api(`/api/mistakes/${id}/sheet-image`, { method: 'POST', body: { revoke: true } });
+          toast('已撤销净图与上纸确认，学生版回到默认不出图。');
+          await mount({ root, api });
+        } catch (error) { toast(`撤销失败：${error.message}`, 'error'); }
+      },
+    });
+    sheetActions.append(revokeClean);
+  } else {
+    const fileInput = el('input', 'input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/png,image/jpeg,image/webp,image/gif';
+    fileInput.id = 'sheet-image-input';
+    const fileField = el('div', 'field');
+    const fileLabel = el('label', '', '上传净图（重拍或裁剪过的干净图）');
+    fileLabel.htmlFor = fileInput.id;
+    fileField.append(fileLabel, fileInput);
+    sheetActions.append(fileField);
+    sheetActions.append(button('上传净图', {
+      variant: 'ghost',
+      onClick: async () => {
+        const file = fileInput.files?.[0];
+        if (!file) {
+          toast('先选一张净图。', 'error');
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = async () => {
+          try {
+            await api(`/api/mistakes/${id}/sheet-image`, {
+              method: 'POST',
+              body: { image: reader.result },
+            });
+            toast('净图已保存，学生版将使用这张图。');
+            await mount({ root, api });
+          } catch (error) { toast(`上传失败：${error.message}`, 'error'); }
+        };
+        reader.readAsDataURL(file);
+      },
+    }));
+    sheetActions.append(button(item.sheet_image_ok ? '重新确认原图可上纸' : '确认原图可上纸', {
+      variant: 'ghost',
+      onClick: async () => {
+        try {
+          await api(`/api/mistakes/${id}/sheet-image`, {
+            method: 'POST', body: { confirm_original: true },
+          });
+          toast('已确认原图无作答痕迹，学生版将使用原图。');
+          await mount({ root, api });
+        } catch (error) { toast(`确认失败：${error.message}`, 'error'); }
+      },
+    }));
+  }
+  sheetImageBox.append(sheetActions);
+  basics.append(sheetImageBox);
+
   // 诊断与学生结论闸门
   const diagnosis = bodyOf('detail-diagnosis');
   diagnosis.replaceChildren();
