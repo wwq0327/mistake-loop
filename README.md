@@ -170,6 +170,7 @@ docker compose up -d --build
 | `docs/test-plan.md` | 测试分组、六组新增测试、未覆盖范围 |
 | `docs/github/issue-map.md` | 60 个 Issue 与需求编号映射 |
 | `docs/handoffs/2026-11-04-project-kickoff-handoff.md` | 开工交接档案（历史） |
+| `docs/handoffs/2026-11-05-p16-closure-board-handoff.md` | P16 闭环看板开发交接（开发尚未开始） |
 | `docs/releases/2026-11-04-v2.md` | 本版发布说明：已完成、未验证、许可证与数据边界 |
 | `CONTRIBUTING.md` / `SECURITY.md` / `LICENSE` | 协作约定 / 隐私与漏洞报告 / MIT 许可证 |
 
