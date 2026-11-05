@@ -39,6 +39,28 @@ function isMobile() {
   }
 }
 
+// 老师点进详情看完再回来，不该重选一遍学科和阶段（#62）。
+// 存 sessionStorage 而不是 localStorage：关掉标签页就忘掉，不替下一个人记着。
+export const FILTER_KEY = 'mistake-loop:board-filters';
+
+function readFilters() {
+  try {
+    const raw = globalThis.sessionStorage?.getItem(FILTER_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    // 存坏了、无痕模式写不了——都当没存过，绝不因此把看板弄挂。
+    return {};
+  }
+}
+
+function writeFilters(filters) {
+  try {
+    globalThis.sessionStorage?.setItem(FILTER_KEY, JSON.stringify(filters));
+  } catch { /* 存不了就只活在内存里，功能不受影响 */ }
+}
+
 function textbookRef(item) {
   // 没有定位就什么都不显示，不许拿 undefined 或别的字段凑一个位置出来。
   const parts = [];
@@ -59,8 +81,10 @@ function dueText(due) {
  * 调用方（以及测试）可以精确编排请求时序。
  */
 export async function mountBoard({ root, api }) {
-  let subject = 'all';
-  let activeStage = 'reviewing';
+  // 恢复上次的筛选；存储里的值先过一遍白名单，脏值不许直接把看板带偏。
+  const stored = readFilters();
+  let subject = SUBJECTS.some((option) => option.key === stored.subject) ? stored.subject : 'all';
+  let activeStage = STAGES.some((stage) => stage.status === stored.stage) ? stored.stage : 'reviewing';
   // 请求序号：只有最后一次请求的结果算数，旧请求回来直接丢弃，
   // 免得快速切学科时旧结果盖掉新筛选（#61）。
   let requestToken = 0;
@@ -283,12 +307,14 @@ export async function mountBoard({ root, api }) {
 
   async function setSubject(next) {
     subject = next;
+    writeFilters({ subject, stage: activeStage });
     renderChips();
     return load();
   }
 
   async function setStage(next) {
     activeStage = next;
+    writeFilters({ subject, stage: activeStage });
     if (current) {
       renderChips();
       renderColumns(current.buckets, current.dueMap);

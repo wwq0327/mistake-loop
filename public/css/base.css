@@ -2,6 +2,12 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
+/* hidden 属性必须真的隐藏。
+   浏览器默认的 [hidden]{display:none} 是「用户代理样式」，任何组件类只要写了
+   display（比如 .alert{display:flex}）就会把它压过去——元素明明标了 hidden 还在。
+   #62 让详情页横幅退场时踩到的就是这个坑。 */
+[hidden] { display: none !important; }
+
 html { -webkit-text-size-adjust: 100%; }
 
 body {

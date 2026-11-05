@@ -1,6 +1,7 @@
 // 题目详情：一道题的一生。五态进度、缺口提示、四个关联列表、诊断闸门。
 // 红线：学生结论由老师记录，系统不代填；结论为空时界面禁止推进到「纠错中」。
 import { el, stateTag, alert, empty, link, button, toast } from '../ui.js';
+import { describeError } from '../api.js';
 import { mistakeIdFromLocation } from '../store.js';
 
 const STEPS = ['待诊断', '诊断中', '纠错中', '复习中', '已掌握'];
@@ -46,6 +47,61 @@ function bodyOf(id) {
   return document.querySelector(`#${id} .card__body`);
 }
 
+// 五种状态各有一件「现在就该做的事」，别让老师自己在整页里找（#62）。
+// 复习中的入口指回看板：真正登记做对做错在那边，本页只留复习留痕。
+const NEXT_ACTION = {
+  new: { key: 'diagnose', label: '去记诊断与错因', target: 'detail-diagnosis', focus: '#detail-category' },
+  diagnosing: { key: 'conclusion', label: '记录学生说出的结论', target: 'detail-diagnosis', focus: '#detail-conclusion' },
+  correcting: { key: 'variants', label: '去审核三层变式', target: 'detail-variants', focus: '#detail-variants input' },
+  reviewing: { key: 'review', label: '去今日复习', href: '/' },
+  mastered: { key: 'evidence', label: '回看掌握证据', target: 'detail-evidence' },
+};
+
+// 非表单元素默认不可聚焦，补个 tabindex 才真的能把焦点交过去（键盘用户受益）。
+const FOCUSABLE = ['input', 'select', 'textarea', 'button', 'a'];
+
+function focusTarget(node) {
+  if (!node || typeof node.focus !== 'function') return;
+  if (!FOCUSABLE.includes(node.localName) && !node.hasAttribute?.('tabindex')) {
+    node.setAttribute?.('tabindex', '-1');
+  }
+  node.focus();
+}
+
+function goTo({ target, focus }) {
+  const section = target ? document.getElementById(target) : null;
+  section?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+  const node = focus ? document.querySelector(focus) : section;
+  focusTarget(node);
+}
+
+function renderNextAction({ item, stageLabel, requirement }) {
+  const host = document.querySelector('#detail-next .card__body');
+  if (!host) return;
+  host.replaceChildren();
+
+  host.append(el('p', 'detail-next__stage', `当前阶段：${stageLabel}`));
+  host.append(el('p', 'detail-next__why', requirement));
+
+  const action = NEXT_ACTION[item.status];
+  const row = el('div', 'row');
+  if (action) {
+    if (action.href) {
+      row.append(link(`${action.label} →`, action.href, 'button button--primary'));
+    } else {
+      row.append(button(action.label, {
+        variant: 'primary',
+        onClick: () => goTo(action),
+      }));
+    }
+    const node = row.firstChild;
+    node.setAttribute?.('data-next-action', action.key);
+  }
+  // 返回看板：看板记得住学科与阶段，回来不用重选（见 board.js 的 FILTER_KEY）。
+  row.append(link('返回看板 →', '/', 'small'));
+  host.append(row);
+}
+
 export async function mount({ root, api }) {
   const id = mistakeIdFromLocation();
   if (!id) {
@@ -53,11 +109,35 @@ export async function mount({ root, api }) {
     return;
   }
 
-  const item = await api(`/api/mistakes/${id}`);
+  // 首屏统一由 #detail-next 回答「现在该做什么」，旧横幅不再重复同一句话；
+  // 加载与失败也放这块——它在页面顶部，老师第一眼就能看见，
+  // 而不是落在页面最底下的 #view 里（#62）。
+  const gate = document.getElementById('detail-gate');
+  if (gate) gate.hidden = true;
+
+  const notice = (nodes) => {
+    const host = document.querySelector('#detail-next .card__body');
+    if (host) { host.replaceChildren(...nodes); return; }
+    root.replaceChildren(...nodes);
+  };
+
+  // 先把「正在读」画出来：一片空白会让人以为页面坏了，等待本身需要被看见。
+  notice([el('p', 'detail-next__stage', '正在读取这道题…')]);
+
+  let item;
+  try {
+    item = await api(`/api/mistakes/${id}`);
+  } catch (error) {
+    notice([
+      alert(`第 ${id} 题没读到：${describeError(error)}`, 'error'),
+      button('重试', { variant: 'secondary', onClick: () => { mount({ root, api }); } }),
+    ]);
+    root.replaceChildren();
+    return;
+  }
   // 出题方向与错因子字典的唯一事实源在服务端 /api/meta，前端不写死。
   const meta = await api('/api/meta').catch(() => null);
   const index = STATUS_INDEX[item.status] ?? 0;
-  const gate = document.getElementById('detail-gate');
 
   // 五态：当前态高亮，之前的态标已完成。
   for (const [i, key] of STEP_KEYS.entries()) {
@@ -66,22 +146,27 @@ export async function mount({ root, api }) {
     node.className = i < index ? 'is-done' : i === index ? 'is-current' : '';
     node.textContent = STEPS[i];
   }
-  gate.textContent = `当前：${STEPS[index]}。${nextRequirement(item)}`;
-  gate.className = item.status === 'mastered' ? 'alert alert--info' : 'alert alert--warn';
+  // 首屏先回答「现在该做什么」，具体材料都在下面各区块里（#62）。
+  renderNextAction({ item, stageLabel: STEPS[index], requirement: nextRequirement(item) });
   root.replaceChildren(el('div', 'row', `第 ${item.id} 题 · ${SUBJECT_LABEL[item.subject] || item.subject}`));
   const statusTag = stateTag(item.status, STEPS[index]);
   root.firstChild.append(statusTag);
 
-  // 原题与教材定位
+  // 原题与教材定位。
+  // 原图节点就长在这个 card__body 里，replaceChildren() 会把它一起清掉——
+  // 先取出来再放回去。否则紧接着的 getElementById 拿到 null，
+  // 整页从这里往后（教材定位、诊断、变式、留痕、证据）全都渲染不出来。
   const basics = bodyOf('detail-basics');
+  const image = document.getElementById('detail-image') ?? el('img', 'qcard__figure');
+  image.id = 'detail-image';
   basics.replaceChildren();
   basics.append(el('div', 'qcard__prompt', item.prompt || '（题干待补）'));
-  const image = document.getElementById('detail-image');
   if (item.image_path) {
     image.src = `/${item.image_path}`;
     image.alt = `第 ${item.id} 题原图`;
     image.hidden = false;
   } else image.hidden = true;
+  basics.append(image);
   const facts = el('div', 'row');
   facts.append(
     el('span', 'small muted', `教材定位：${item.unit_title || item.lesson_title || '待补'}`),

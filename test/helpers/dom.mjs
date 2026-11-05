@@ -271,13 +271,31 @@ export function installDom({ ids = [], location: locationOption = null } = {}) {
   const registry = new Map();
   const body = new ShimNode('body');
 
-  const getElementById = (id) => {
-    if (!registry.has(id)) {
-      const node = new ShimNode('div');
-      node.id = id;
-      registry.set(id, node);
+  // 与 querySelectorAll 走同一套匹配逻辑（逗号分组 + 后代组合）。
+  const querySelector = (selector) => {
+    for (const group of splitSelectorGroups(selector)) {
+      const parts = group.split(/\s+/).filter(Boolean);
+      for (const candidate of body.descendants()) {
+        if (matchesChain(candidate, parts)) return candidate;
+      }
     }
-    return registry.get(id);
+    return null;
+  };
+
+  const getElementById = (id) => {
+    // 先查文档：树上真有这个 id 就用它，别再另造一个。
+    const found = querySelector(`#${id}`);
+    if (found) {
+      registry.set(id, found);
+      return found;
+    }
+    // 文档里没有，就退回登记过的那一个（可能还没被 append）；
+    // 必须每次返回同一个占位节点，否则每次调用都造新的，写进去的东西立刻丢失。
+    if (registry.has(id)) return registry.get(id);
+    const node = new ShimNode('div');
+    node.id = id;
+    registry.set(id, node);
+    return node;
   };
 
   const document = {
@@ -289,16 +307,7 @@ export function installDom({ ids = [], location: locationOption = null } = {}) {
     // 支持后代组合选择器（如 '#detail-variants .card__body'）：
     // 页面代码用 bodyOf(id) 找「区块里的内容区」，只认单段选择器会退化成
     // 按整串 id 现造一个空节点——内容渲染进了游离节点，测试自然找不到。
-    // 与 querySelectorAll 走同一套匹配逻辑（逗号分组 + 后代组合）。
-    querySelector: (selector) => {
-      for (const group of splitSelectorGroups(selector)) {
-        const parts = group.split(/\s+/).filter(Boolean);
-        for (const candidate of body.descendants()) {
-          if (matchesChain(candidate, parts)) return candidate;
-        }
-      }
-      return null;
-    },
+    querySelector,
     querySelectorAll: (selector) => body.querySelectorAll(selector),
   };
 
