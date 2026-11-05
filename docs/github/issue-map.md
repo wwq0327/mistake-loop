@@ -3,7 +3,7 @@
 | 项 | 值 |
 | --- | --- |
 | 仓库 | https://github.com/wwq0327/mistake-loop |
-| Issue 总数 | 65 |
+| Issue 总数 | 77 |
 | 生成依据 | `docs/requirements/PRD.md`（v2 增量 F15-F27 / U1-U8 / B1-B12）、`docs/plans/2026-11-04-v2-plan.md` 第九节 |
 | 校验命令 | `node scripts/check-issue-map.mjs`，由 `test/issue-map.test.mjs` 测试先行守护 |
 
@@ -79,6 +79,19 @@
 | #64 | P16 P16 方案 B：闭环看板 | CI / B2 | [测试服务器绑到 IPv6 通配口，随机撞上本机代理端口导致真 HTTP 测试偶发失败](https://github.com/wwq0327/mistake-loop/issues/64) |
 | #65 | P16 P16 方案 B：闭环看板 | F21–F24 / F27 / B11 | [修正方案 B 视觉落地：统一主题、顶部导航和全站页面](https://github.com/wwq0327/mistake-loop/issues/65) |
 
+| #66 | P17 P17 AI 学习闭环 | F28–F39 | [v3 需求、AI 边界和接手基线](https://github.com/wwq0327/mistake-loop/issues/66) |
+| #67 | P17 P17 AI 学习闭环 | F28 | [分离变式题质量审核与学生验证，补齐诊断总闸门](https://github.com/wwq0327/mistake-loop/issues/67) |
+| #68 | P17 P17 AI 学习闭环 | F29 | [统一复习登记与本轮掌握证据，拒绝做错时新增证据](https://github.com/wwq0327/mistake-loop/issues/68) |
+| #69 | P17 P17 AI 学习闭环 | F30 | [统一 1-3-7-30 日期含义并落实长间隔验证](https://github.com/wwq0327/mistake-loop/issues/69) |
+| #70 | P17 P17 AI 学习闭环 | F31 | [学生版使用干净题面，防止原卷答案与批注上纸](https://github.com/wwq0327/mistake-loop/issues/70) |
+| #71 | P18 P18 AI 学习闭环 | F32 | [后台 AI 多阶段任务编排、版本失效和失败恢复](https://github.com/wwq0327/mistake-loop/issues/71) |
+| #72 | P18 P18 AI 学习闭环 | F33 | [AI 错步分析和一次一问的支架草稿](https://github.com/wwq0327/mistake-loop/issues/72) |
+| #73 | P18 P18 AI 学习闭环 | F34 | [相关题检索与三科变式草稿生成和质量校验](https://github.com/wwq0327/mistake-loop/issues/73) |
+| #74 | P18 P18 AI 学习闭环 | F35 | [方案 B 今日动作区与集中核对确认](https://github.com/wwq0327/mistake-loop/issues/74) |
+| #75 | P19 P19 AI 学习闭环 | F36 | [固定练习批次、纸面题号与任务对应](https://github.com/wwq0327/mistake-loop/issues/75) |
+| #76 | P19 P19 AI 学习闭环 | F37 | [分级学习结果、下一轮自动备题与延迟新题](https://github.com/wwq0327/mistake-loop/issues/76) |
+| #77 | P19 P19 AI 学习闭环 | F38/F39 | [单学生学习效率试运行与基于记录的周复盘](https://github.com/wwq0327/mistake-loop/issues/77) |
+
 ## 阶段汇总
 
 | 里程碑 | Issue 数 |
@@ -100,5 +113,9 @@
 | P14 P14 教学法闸门与接口契约硬化 | 4 |
 | P15 P15 重复提交与静默失败硬化 | 5 |
 | P16 P16 方案 B：闭环看板 | 5 |
+
+| P17 学习真实性与 v3 需求基线 | 5 |
+| P18 AI 分析与备题闭环 | 4 |
+| P19 纸面任务与单学生试运行 | 3 |
 
 新增 Issue 时：同步更新 `scripts/check-issue-map.mjs` 的 `EXPECTED_COUNT`，重跑测试与校验脚本。README 与发布说明里的 Issue 总数、用例数由 `scripts/check-docs.mjs` 守着，写了就必须等于真实来源，不许手抄。
