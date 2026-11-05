@@ -129,9 +129,17 @@ test('#56 不传 due_on 时行为不变：连发 4 次都 200，轮次走到 4',
     const step = await call(`/api/reviews/${id}/result`, { method: 'POST', body: { result: 'correct' } });
     assert.equal(step.status, 200, `第 ${i + 2} 次提交应当放行`);
   }
-  const row = db.prepare('SELECT status, review_round FROM mistakes WHERE id = ?').get(id);
+  const row = db.prepare('SELECT status, review_round, next_review FROM mistakes WHERE id = ?').get(id);
   assert.equal(row.review_round, 4);
-  assert.equal(row.status, 'mastered', '第 4 轮带证据应判为已掌握');
+  // #69 修订：第 4 轮做对不再当场掌握，先排 +30 的长间隔任务。
+  assert.equal(row.status, 'reviewing', '30 天间隔还没发生，不得掌握');
+  assert.equal(row.next_review, addDays(today(), 30));
+
+  // 快进：长间隔任务到期后完成（证据已在第 1 次提交落库，且无回落），此时才掌握。
+  db.prepare('UPDATE mistakes SET next_review = ? WHERE id = ?').run(addDays(today(), -1), id);
+  const last = await call(`/api/reviews/${id}/result`, { method: 'POST', body: { result: 'correct' } });
+  assert.equal(last.status, 200);
+  assert.equal(last.data.status, 'mastered', '长间隔任务真实完成后才掌握');
 });
 
 test('#56 due_on 与当前到期日对不上时拒绝，并说清是哪种不对', async () => {

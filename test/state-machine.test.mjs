@@ -38,10 +38,21 @@ describe('状态机：1-3-7-30 与掌握闸门', () => {
     assert.equal(next.mastered_at, null);
   });
 
-  it('S8 第 4 轮且有证据：才 mastered', () => {
+  it('S8(#69) 第一次到第 4 轮不掌握：排 +30 等待真实发生', () => {
     const next = applyReview({ mistake: mistake(3), result: 'correct', today: DAY, evidenceCount: 1 });
+    assert.equal(next.status, 'reviewing', '30 天间隔还没发生，不得掌握');
+    assert.equal(next.review_round, 4);
+    assert.equal(next.next_review, addDays(DAY, 30));
+  });
+
+  it('S12(#69) 第 4 轮长间隔任务到期后完成且有证据：mastered', () => {
+    // mistake(4) 没有 next_review：等待是否过去无从判定，不得掌握。
+    const noDue = applyReview({ mistake: mistake(4), result: 'correct', today: DAY, evidenceCount: 1 });
+    assert.equal(noDue.status, 'reviewing');
+    // 排期已到期（含迟到）：完成 30 天间隔任务，有本轮证据即掌握。
+    const due = { status: 'reviewing', review_round: 4, next_review: DAY };
+    const next = applyReview({ mistake: due, result: 'correct', today: DAY, evidenceCount: 1 });
     assert.equal(next.status, 'mastered');
-    assert.equal(next.next_review, null);
     assert.equal(next.mastered_at, DAY);
   });
 
@@ -56,9 +67,9 @@ describe('状态机：1-3-7-30 与掌握闸门', () => {
     assert.throws(() => applyVariantResults({ results: [{ level: 'other', result: 'pass' }], today: DAY }), /invalid level/);
   });
 
-  it('掌握闸门两个条件缺一不可', () => {
+  it('掌握闸门两个条件缺一不可（#69：条件看完成前的轮次）', () => {
     assert.equal(canMaster(4, 0), false);
-    assert.equal(canMaster(3, 1), false);
+    assert.equal(canMaster(3, 1), false, '从第 3 轮到第 4 轮只是排下长间隔任务');
     assert.equal(canMaster(4, 1), true);
   });
 });

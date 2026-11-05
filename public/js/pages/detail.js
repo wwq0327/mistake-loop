@@ -47,7 +47,9 @@ function nextRequirement(item) {
   }
   if (item.status === 'reviewing') {
     if ((item.review_round ?? 0) < 4) return `还差：第 ${4 - (item.review_round ?? 0)} 轮复习，按 1-3-7-30 节奏推进。`;
-    if (!evidenceCount) return '还差：第 4 轮之后还需一条学生自己的掌握证据（复述 / 同结构变式 / 间隔提取 / 说出检查方法 / 讲给别人听）。';
+    // #69 方案 A：第 4 轮之后还有一次 30 天间隔的长间隔任务，真实完成才允许掌握。
+    if (!item.next_review) return '还差：完成 30 天间隔的那次长间隔复习，并记录一条学生自己的掌握证据。';
+    return `还差：完成 ${item.next_review} 到期的 30 天长间隔复习（到期后做对才算），并记录一条学生自己的掌握证据（复述 / 同结构变式 / 间隔提取 / 说出检查方法 / 讲给别人听）。`;
   }
   return '已掌握。复习留痕与掌握证据仍会完整保留，随时可回看。';
 }

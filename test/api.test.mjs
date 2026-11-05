@@ -159,13 +159,21 @@ describe('API 冒烟：真实 HTTP 全链路', () => {
     assert.equal(printed.data.cards[0].variants.length, 3);
     assert.ok(printed.data.cards[0].geometry_svg.includes('&lt;script&gt;'), '几何图文本必须转义');
 
-    // 掌握闸门：再做对 3 次到第 4 轮，有证据才 mastered
+    // 掌握闸门（#69 方案 A）：再做对 3 次到第 4 轮只排 +30；长间隔任务到期后完成才 mastered
     for (let i = 0; i < 3; i += 1) {
       const step = await call(`/api/reviews/${id}/result`, { method: 'POST', body: { result: 'correct' } });
       assert.equal(step.status, 200);
     }
+    const waiting = await call(`/api/mistakes/${id}`);
+    assert.equal(waiting.data.status, 'reviewing', '第 4 轮做对不当场掌握：30 天间隔还没发生');
+    assert.equal(waiting.data.review_round, 4);
+    assert.equal(waiting.data.next_review, addDays(today(), 30));
+    // 快进：把长间隔任务的到期日改到昨天，模拟 30 天真的过去，再完成它。
+    db.prepare('UPDATE mistakes SET next_review = ? WHERE id = ?').run(addDays(today(), -1), id);
+    const finalStep = await call(`/api/reviews/${id}/result`, { method: 'POST', body: { result: 'correct' } });
+    assert.equal(finalStep.status, 200);
     const mastered = await call(`/api/mistakes/${id}`);
-    assert.equal(mastered.data.status, 'mastered');
+    assert.equal(mastered.data.status, 'mastered', '长间隔任务真实完成 + 本轮证据 → 掌握');
     assert.equal(mastered.data.review_round, 4);
     assert.equal(mastered.data.next_review, null);
     const rejected = await call(`/api/reviews/${id}/result`, { method: 'POST', body: { result: 'wrong' } });

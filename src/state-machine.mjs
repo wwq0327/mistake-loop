@@ -28,8 +28,11 @@ export const INTERVALS = { 1: 1, 2: 3, 3: 7, 4: 30 };
 // （recognition_jobs.manual_retries）。
 export const MANUAL_RETRY_LIMIT = 2;
 
-export function canMaster(round, evidenceCount) {
-  return round >= 4 && evidenceCount >= 1;
+// #69 方案 A（已确认）：掌握闸门 = 第 4 轮的 30 天间隔任务真实完成 + 本轮证据。
+// prevRound 是这次做对之前的轮次：只有它已经是 4，这次做对完成的才是那次 +30 的长间隔任务；
+// 第一次从 3 走到 4 只是「排下 +30」，不算完成等待。
+export function canMaster(prevRound, evidenceCount) {
+  return prevRound >= 4 && evidenceCount >= 1;
 }
 
 function resetToDiagnosing() {
@@ -37,12 +40,16 @@ function resetToDiagnosing() {
 }
 
 // 迟到不重置：函数不读 due_on，只看当前 review_round。
+// #69：长间隔任务的「真实完成」还要求等待真的过去——登记当天必须已到或已过
+// 该任务排的到期日（next_review）。提前登记不消失，只是不算完成等待，重新排 +30。
 export function applyReview({ mistake, result, today, evidenceCount = 0 }) {
   if (result === 'wrong') return resetToDiagnosing();
   if (result !== 'correct') throw new Error(`invalid review result: ${result}`);
 
-  const round = Math.min((Number(mistake.review_round) || 0) + 1, 4);
-  if (canMaster(round, evidenceCount)) {
+  const prevRound = Number(mistake.review_round) || 0;
+  const round = Math.min(prevRound + 1, 4);
+  const waitElapsed = Boolean(mistake.next_review) && String(today) >= String(mistake.next_review);
+  if (canMaster(prevRound, evidenceCount) && waitElapsed) {
     return { status: 'mastered', review_round: round, next_review: null, mastered_at: today };
   }
   return {

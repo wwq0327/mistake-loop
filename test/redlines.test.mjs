@@ -120,9 +120,9 @@ describe('AI 路径的教学法红线', () => {
     const result = spawnSync(process.execPath, ['--test', ...v1Files], { encoding: 'utf8', env });
     assert.equal(result.status, 0, `${result.stdout.slice(-400)}${result.stderr.slice(-200)}`);
     const summary = parseTestSummary(result.stdout);
-    // #67 在 state-machine.test.mjs 增补了 S11（未独立作答不推进），用例数 28 → 29。
-    assert.equal(summary.tests, 29, 'v1 用例数不是 29');
-    assert.equal(summary.pass, 29, 'v1 通过数不是 29');
+    // #67 在 state-machine.test.mjs 增补了 S11（未独立作答不推进），用例数 28 → 30（#67 加 S11、#69 加 S12）。
+    assert.equal(summary.tests, 30, 'v1 用例数不是 30');
+    assert.equal(summary.pass, 30, 'v1 通过数不是 30');
     assert.equal(summary.fail, 0, 'v1 回归有失败用例');
   });
 });
