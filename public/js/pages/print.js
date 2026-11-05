@@ -1,6 +1,7 @@
 // 打印：默认带今日复习，可增删；预览与出纸共用同一份题卡数据。
 // 学生版字段白名单在这里收口：答案、学生作答、诊断记录与引导提示永不落纸。
 import { el, button, empty, alert, questionCard, toast } from '../ui.js';
+import { describeError } from '../api.js';
 
 export const STUDENT_FIELDS = [
   'id', 'subject', 'subject_label', 'unit_title', 'prompt', 'image_path', 'geometry_svg',
@@ -15,11 +16,6 @@ export function pickStudentFields(card) {
     ? card.variants.map((item) => ({ level: item.level, prompt: item.prompt }))
     : [];
   return clean;
-}
-
-// 出纸时不再取数：打印的就是屏幕上已经渲染好的那份 sheetData。
-function printSheet() {
-  window.print();
 }
 
 const SUBJECT_LABEL = { math: '数学', chinese: '语文', english: '英语' };
@@ -45,9 +41,27 @@ export async function mount({ root, api, toast: notify = toast }) {
   const todayIds = today.items.map((item) => Number(item.id));
   const selected = new Set(todayIds);
   let sheetData = { total: 0, cards: [] };
+  // previewIds：当前屏幕上的预览对应哪几道题。
+  // 它只在取数成功时更新——取数失败就保持上一份，屏幕上的计数与预览始终是一对。
+  let previewIds = [];
 
-  function renderPreview(sheet) {
+  // 屏幕上的预览是不是还在对应当前选题。
+  // 对不上就说明预览已过期：这时印出来的是旧题，不能放行。
+  function previewMatchesSelection() {
+    const wanted = [...selected].sort((a, b) => a - b);
+    if (wanted.length !== previewIds.length) return false;
+    return wanted.every((id, i) => id === previewIds[i]);
+  }
+
+  function renderPreview(sheet, expired = false) {
     previewBox.replaceChildren();
+    if (expired) {
+      previewBox.append(alert(
+        `预览没更新成功：下面还是上一次的 ${sheet.cards.length} 张卡片，跟当前选题对不上。`
+        + '打印已锁住，刷新成功才能印。',
+        'error',
+      ));
+    }
     if (!sheet.cards || sheet.cards.length === 0) {
       previewBox.append(empty('没有可打印的题', '今天没有到期的复习题，也可以在上面勾选几道。'));
       return;
@@ -57,16 +71,36 @@ export async function mount({ root, api, toast: notify = toast }) {
     }
   }
 
-  async function refreshSheet() {
-    countNode.textContent = String(selected.size);
-    if (selected.size === 0) {
-      sheetData = { total: 0, cards: [] };
-    } else {
-      const ids = [...selected].sort((a, b) => a - b).join(',');
-      sheetData = await api(`/api/print?ids=${ids}`);
+  // 把当前状态一次性画到屏幕上：计数、预览、标题、打印按钮同步更新。
+  // 计数直接取自预览里的卡片数，所以「计数」与「预览」在结构上就不可能对不上。
+  function paint() {
+    const expired = !previewMatchesSelection();
+    countNode.textContent = String(sheetData.cards.length);
+    if (titleNode) {
+      titleNode.textContent = expired
+        ? `A4 预览 · 未更新（还是上一次的 ${sheetData.cards.length} 张）`
+        : `A4 预览 · ${sheetData.total} 张卡片`;
     }
-    renderPreview(sheetData);
-    if (titleNode) titleNode.textContent = `A4 预览 · ${sheetData.total} 张卡片`;
+    renderPreview(sheetData, expired);
+    printBtn.disabled = expired;
+    printNote.textContent = expired ? '预览没更新成功，先别印：刷新成功才能印。' : '';
+  }
+
+  async function refreshSheet() {
+    const wanted = [...selected].sort((a, b) => a - b);
+    try {
+      // 先取数，取成了才换预览：中间不会出现「计数是新的、预览还是旧的」。
+      const next = wanted.length
+        ? await api(`/api/print?ids=${wanted.join(',')}`)
+        : { total: 0, cards: [] };
+      sheetData = next;
+      previewIds = wanted;
+    } catch (error) {
+      // 取数失败：sheetData 与 previewIds 保持上一份，屏幕上的计数与预览仍然是一对。
+      // 真正要拦的是「印出旧题」——paint() 会把打印按钮锁住。
+      notify(`没能刷新预览：${describeError(error)}`, 'error');
+    }
+    paint();
   }
 
   function syncBoxes() {
@@ -77,13 +111,20 @@ export async function mount({ root, api, toast: notify = toast }) {
 
   async function withRefresh(fn) {
     fn();
-    try {
-      await refreshSheet();
-    } catch (error) {
-      notify(`没能刷新预览：${error.message}`, 'error');
-    }
+    await refreshSheet();
   }
 
+  // 出纸前再核一次：屏幕上的预览必须还对应当前选题，对不上就不印。
+  function printSheet() {
+    if (!previewMatchesSelection()) {
+      notify('预览和当前选题对不上，先把预览刷新成功再印。', 'error');
+      return;
+    }
+    window.print();
+  }
+
+  const printBtn = button('打印 / 另存 PDF', { variant: 'secondary', onClick: printSheet });
+  const printNote = el('span', 'small muted', '');
   actionsBox.replaceChildren(
     button('只留今日复习', {
       variant: 'primary',
@@ -100,7 +141,8 @@ export async function mount({ root, api, toast: notify = toast }) {
         syncBoxes();
       }),
     }),
-    button('打印 / 另存 PDF', { variant: 'secondary', onClick: printSheet }),
+    printBtn,
+    printNote,
   );
 
   const candidateRows = [];
