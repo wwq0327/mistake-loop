@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { openDb, migrate, closeDb } from '../src/db.mjs';
 import { createApp } from '../src/server.mjs';
 import { today, addDays } from '../src/lib/dates.mjs';
+import { listenLoopback } from './helpers/server.mjs';
 
 const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==';
 
@@ -25,7 +26,7 @@ before(async () => {
     dataDir,
     schedulerState: { running: true, lastRunAt: null, lastResult: { date: today(), due: 0, inserted: 0 } },
   });
-  server = app.listen(0);
+  server = listenLoopback(app);
   await new Promise((resolve) => server.once('listening', resolve));
   base = `http://127.0.0.1:${server.address().port}`;
 });

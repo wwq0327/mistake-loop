@@ -14,6 +14,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { installDom, textOf } from './helpers/dom.mjs';
 import { DIAGNOSABLE_STATUSES } from '../src/state-machine.mjs';
+import { listenLoopback } from './helpers/server.mjs';
 
 const dom = installDom({ location: { pathname: '/mistake/7', search: '' } });
 const { mount, DIAGNOSABLE_FALLBACK } = await import('../public/js/pages/detail.js');
@@ -149,7 +150,7 @@ test('#57 服务端下发的白名单必须与事实源一致', async () => {
   const db = openDb(':memory:');
   migrate(db);
   const app = createApp({ db, dataDir: '.', schedulerState: { running: true } });
-  const server = app.listen(0);
+  const server = listenLoopback(app);
   await new Promise((resolve) => server.once('listening', resolve));
   try {
     const res = await fetch(`http://127.0.0.1:${server.address().port}/api/meta`);
@@ -176,7 +177,7 @@ test('#57 后端这道闸门得在：复习中的题不许再记错因', async (
   `).run(now, now).lastInsertRowid);
 
   const app = createApp({ db, dataDir: '.', schedulerState: { running: true } });
-  const server = app.listen(0);
+  const server = listenLoopback(app);
   await new Promise((resolve) => server.once('listening', resolve));
   try {
     const res = await fetch(`http://127.0.0.1:${server.address().port}/api/mistakes/${id}/diagnosis`, {

@@ -11,6 +11,7 @@ import { openDb, migrate, closeDb } from '../src/db.mjs';
 import { createApp } from '../src/server.mjs';
 import { checkSubtype } from '../src/lib/validation.mjs';
 import { subtypesFor, allSubtypesFor } from '../src/lib/subjects.mjs';
+import { listenLoopback } from './helpers/server.mjs';
 
 const NOW = '2026-11-04T00:00:00Z';
 
@@ -26,7 +27,7 @@ async function setup() {
   db = openDb(join(dataDir, 'mistakes.db'));
   migrate(db);
   const app = createApp({ db, dataDir });
-  server = app.listen(0);
+  server = listenLoopback(app);
   await new Promise((r) => server.once('listening', r));
   base = `http://127.0.0.1:${server.address().port}`;
 }

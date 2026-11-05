@@ -12,6 +12,7 @@ import { createApp } from '../src/server.mjs';
 import { createJobWorker } from '../src/ai/jobs.mjs';
 import { snapshot, diffRedlines, scanAiSource } from '../src/ai/redlines.mjs';
 import { parseTestSummary } from '../scripts/parse-test-summary.mjs';
+import { listenLoopback } from './helpers/server.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..');
@@ -54,7 +55,7 @@ before(async () => {
     options: { pollIntervalMs: 100000, readImage: async () => ({ base64: 'AAAA', mime: 'image/jpeg' }) },
   });
   const app = createApp({ db, dataDir, recognitionWorker: worker });
-  server = app.listen(0);
+  server = listenLoopback(app);
   await new Promise((resolve) => server.once('listening', resolve));
   base = `http://127.0.0.1:${server.address().port}`;
   beforeSnapshot = snapshot(db);

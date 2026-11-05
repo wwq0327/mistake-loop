@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { openDb, migrate, closeDb } from '../src/db.mjs';
 import { createApp } from '../src/server.mjs';
+import { listenLoopback } from './helpers/server.mjs';
 
 let dataDir;
 let db;
@@ -20,7 +21,7 @@ async function setup() {
   db = openDb(join(dataDir, 'mistakes.db'));
   migrate(db);
   const app = createApp({ db, dataDir });
-  server = app.listen(0);
+  server = listenLoopback(app);
   await new Promise((r) => server.once('listening', r));
   base = `http://127.0.0.1:${server.address().port}`;
 }

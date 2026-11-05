@@ -97,7 +97,10 @@ async function withServer({ enabled, recognize }) {
     },
   });
   const app = createApp({ db, dataDir, recognitionWorker: worker });
-  const server = app.listen(0);
+  // 绑死 IPv4 loopback：不传 host 时 macOS 会绑成 [::]:P，端口号可能从 IPv6
+  // 空间借到已被本机代理占着的 IPv4 端口，请求便掉进别人的 socket。
+  // 与 test/helpers/server.mjs 的 LOOPBACK_HOST 保持一致，由 test/server-bind.test.mjs 守护。
+  const server = app.listen(0, '127.0.0.1');
   await new Promise((resolve) => server.once('listening', resolve));
   return {
     db, dataDir, worker,

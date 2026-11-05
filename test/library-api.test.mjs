@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { openDb, migrate, closeDb } from '../src/db.mjs';
 import { createApp } from '../src/server.mjs';
+import { listenLoopback } from './helpers/server.mjs';
 
 let dataDir;
 let db;
@@ -40,7 +41,7 @@ before(async () => {
   chineseA = Number(ins.run('chinese', '语文题甲', now, now).lastInsertRowid);
 
   const app = createApp({ db, dataDir });
-  server = app.listen(0);
+  server = listenLoopback(app);
   await new Promise((resolve) => server.once('listening', resolve));
   base = `http://127.0.0.1:${server.address().port}`;
 });

@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { openDb, migrate, closeDb } from '../src/db.mjs';
 import { createApp } from '../src/server.mjs';
+import { listenLoopback } from './helpers/server.mjs';
 
 let dataDir;
 let db;
@@ -30,7 +31,7 @@ before(async () => {
   `).run(now, now);
 
   const app = createApp({ db, dataDir });
-  server = app.listen(0);
+  server = listenLoopback(app);
   await new Promise((resolve) => server.once('listening', resolve));
   base = `http://127.0.0.1:${server.address().port}`;
 });
@@ -94,7 +95,7 @@ describe('#24 设置页后端能力', () => {
       pendingDrafts: 0,
     });
     const app2 = createApp({ db, dataDir, aiControl: control, aiStatus: statusOf });
-    const server2 = app2.listen(0);
+    const server2 = listenLoopback(app2);
     await new Promise((resolve) => server2.once('listening', resolve));
     const base2 = `http://127.0.0.1:${server2.address().port}`;
     try {

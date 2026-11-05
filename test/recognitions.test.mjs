@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import { openDb, migrate, closeDb } from '../src/db.mjs';
 import { createApp } from '../src/server.mjs';
 import { createJobWorker } from '../src/ai/jobs.mjs';
+import { listenLoopback } from './helpers/server.mjs';
 
 const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==';
 const RECOGNIZED = JSON.stringify({
@@ -52,7 +53,7 @@ before(async () => {
     options: { pollIntervalMs: 100000, backoffBaseMs: 0, readImage: async () => ({ base64: 'AAAA', mime: 'image/jpeg' }) },
   });
   const app = createApp({ db, dataDir, recognitionWorker: worker });
-  server = app.listen(0);
+  server = listenLoopback(app);
   await new Promise((resolve) => server.once('listening', resolve));
   base = `http://127.0.0.1:${server.address().port}`;
 });
