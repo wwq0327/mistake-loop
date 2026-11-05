@@ -6,8 +6,8 @@
 
 **公开开源（MIT）· 开发进度全部走 GitHub Issues · 测试先行 · CI 守护**
 
-> `main` 是已交付的 v2：六页界面、9 张表、收件 → 加工两段流程、AI 图片识别只产草稿、1-3-7-30 弹性复习、A4 打印。462 个用例全绿。
-> 界面靶子见 [静态视觉稿](docs/design/ui-preview.html)，需求与验收口径见 [PRD](docs/requirements/PRD.md)，逐项实测数字见 [B1–B12 验收报告](docs/audits/2026-11-04-v2-acceptance.md)，本版改动见 [发布说明](docs/releases/2026-11-04-v2.md)。
+> `main` 是已交付的 v2：六页界面、9 张表、收件 → 加工两段流程、AI 图片识别只产草稿、1-3-7-30 弹性复习、A4 打印。479 个用例全绿。
+> 界面靶子见 [方案 B 参考原型](docs/design/closure-board-reference.html)（同名 [桌面参考图](docs/design/closure-board-reference.png)），需求与验收口径见 [PRD](docs/requirements/PRD.md)，逐项实测数字见 [B1–B12 验收报告](docs/audits/2026-11-04-v2-acceptance.md)，本版改动见 [发布说明](docs/releases/2026-11-04-v2.md)。
 
 ---
 
@@ -29,7 +29,7 @@ npm run dev
 
 ## 二、六页与 AI 草稿流程
 
-界面按老师的动作组织，不按数据库表排；视觉方向是「批改账簿」——暖纸、墨字、朱红批注色只用于强调，靶子见 [静态视觉稿](docs/design/ui-preview.html)：
+界面按老师的动作组织，不按数据库表排；视觉方向是「方案 B · 浅绿闭环」——浅绿画布、近白绿面板、单一深绿强调，同一道题只在它此刻所在的那一列，靶子见 [方案 B 参考原型](docs/design/closure-board-reference.html)：
 
 | 地址 | 页面 | 干什么 |
 | --- | --- | --- |
@@ -113,8 +113,8 @@ docker compose up -d --build
 
 | 检查 | 结果 |
 | --- | --- |
-| `npm test` | 462 个用例全绿、0 失败（含文档静态检查、设计改版守护等分组用例）；v1 的 28 个测试一个未改 |
-| `npm run check` | 语法全通过；UI 静态违规 0（`html=6 css=5 js=12`）；src/ 色值守护 0 违规；接口可达性守护 25 条路由全部有前端入口或已写明豁免；Issue 映射 64 个编号齐全；视觉一致性机器判定 92/92 项通过（9 组）；文档链接与索引 PASS；文档里的数字与实际一致 |
+| `npm test` | 479 个用例全绿、0 失败（含文档静态检查、设计改版守护等分组用例）；v1 的 28 个测试一个未改 |
+| `npm run check` | 语法全通过；UI 静态违规 0（`html=6 css=5 js=12`）；src/ 色值守护 0 违规；接口可达性守护 25 条路由全部有前端入口或已写明豁免；Issue 映射 65 个编号齐全；视觉一致性机器判定 101/101 项通过（9 组）；文档链接与索引 PASS；文档里的数字与实际一致 |
 | `node scripts/acceptance.mjs` | B1–B12：11 PASS / 0 FAIL / 1 待判断，退出码 0 |
 | 容器构建 | CI run 41860460740：多架构产物含 `linux/amd64` 与 `linux/arm64`；两个架构各真跑一次容器（非 root 用户 `node`、挂载 `/data`），`/health` 回读 `{"ok":true,"db":"ok"}`；只 build 不 push |
 | 六页可达 | 六处路由 `200/200/200/200/200/200`，`data-page` 6/6 |
@@ -137,7 +137,7 @@ docker compose up -d --build
 3. 浏览器打印预览的分页效果与 A4 出纸。
 4. 两周真实试运行与学情判断（这是产品验收，页面做完、测试通过、命令成功都不能代替）。
 
-另外，**B11 视觉一致性待使用者判断，不由开发自评**：静态视觉稿 6 屏在 [ui-preview.html](docs/design/ui-preview.html)，实际六页在 `/`、`/inbox`、`/mistake/:id`、`/print`、`/library`、`/settings`，请对照审阅后由你给结论。
+另外，**视觉一致性待使用者判断，不由开发自评**：方案 B 参考原型在 [closure-board-reference.html](docs/design/closure-board-reference.html)（打开后选顶部 B），实际六页在 `/`、`/inbox`、`/mistake/:id`、`/print`、`/library`、`/settings`，请对照审阅后由你给结论。
 
 其他限制：
 
@@ -148,7 +148,7 @@ docker compose up -d --build
 
 ## 九、开源协作方式
 
-**没有 Issue 的改动不进主分支。** 每个可独立验收的工作单元一个 Issue，写明验收标准与「先写哪个测试、红灯断言是什么」；阶段用 Milestone（P0–P16）组织，共 64 个 Issue，编号映射见 [issue-map.md](docs/github/issue-map.md)。
+**没有 Issue 的改动不进主分支。** 每个可独立验收的工作单元一个 Issue，写明验收标准与「先写哪个测试、红灯断言是什么」；阶段用 Milestone（P0–P16）组织，共 65 个 Issue，编号映射见 [issue-map.md](docs/github/issue-map.md)。
 
 每个 Issue 严格五步：写测试 → 跑一次确认红灯并贴输出 → 写实现 → `npm run check` 与 `npm test` 全绿 → 结果回读后提交 `Refs #N`、更新并关闭 Issue。AI 相关测试一律用本地假 provider，**不发外网、不需密钥**。
 
@@ -165,12 +165,14 @@ docker compose up -d --build
 | `docs/plans/2026-11-04-first-version-plan.md` | v1 施工单（历史档案） |
 | `docs/audits/2026-11-04-v1-review.md` | v1 现状审核，三条产品差距的代码级证据 |
 | `docs/audits/2026-11-04-v2-acceptance.md` | B1–B12 全量验收，逐项实际数字与四项未验证 |
-| `docs/design/ui-preview.html` | v2 静态视觉稿，六屏对照靶子 |
+| `docs/design/closure-board-reference.html` | 方案 B 视觉依据（A/B/C 三案，只有 B 是本项目靶子） |
+| `docs/design/closure-board-reference.png` | 方案 B 桌面参考图 |
+| `docs/design/ui-preview.html` | 旧「批改账簿」视觉稿，仅作历史记录 |
 | `docs/dev-workflow.md` | 五步工作流与阶段红线 |
 | `docs/test-plan.md` | 测试分组、六组新增测试、未覆盖范围 |
-| `docs/github/issue-map.md` | 64 个 Issue 与需求编号映射 |
+| `docs/github/issue-map.md` | 65 个 Issue 与需求编号映射 |
 | `docs/handoffs/2026-11-04-project-kickoff-handoff.md` | 开工交接档案（历史） |
-| `docs/handoffs/2026-11-05-p16-closure-board-handoff.md` | P16 闭环看板开发交接（开发尚未开始） |
+| `docs/handoffs/2026-11-05-p16-closure-board-handoff.md` | P16 闭环看板与方案 B 视觉修正交接 |
 | `docs/releases/2026-11-04-v2.md` | 本版发布说明：已完成、未验证、许可证与数据边界 |
 | `CONTRIBUTING.md` / `SECURITY.md` / `LICENSE` | 协作约定 / 隐私与漏洞报告 / MIT 许可证 |
 

@@ -14,7 +14,8 @@ const NAV_TARGETS = ['/', '/inbox', '/print', '/library', '/settings'];
 
 function currentNavPath() {
   const path = location.pathname;
-  if (path.startsWith('/mistake/')) return '/library';
+  // 详情页归属工作台（#65）：从看板点进来的，导航上亮着的是工作台，不是题库。
+  if (path.startsWith('/mistake/')) return '/';
   if (NAV_TARGETS.includes(path)) return path;
   if (path === '/index.html') return '/';
   return '/';

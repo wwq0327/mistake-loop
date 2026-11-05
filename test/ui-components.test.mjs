@@ -36,8 +36,10 @@ test('layout.css 存在且 375 / 768 / 1440 三档断点明确', () => {
     assert.ok(text.includes(bp), `缺断点 ${bp}`);
   }
   assert.ok(text.includes('.shell'), '缺应用外壳 .shell');
-  assert.ok(text.includes('.sidebar'), '缺桌面侧栏 .sidebar');
-  assert.ok(text.includes('.tabbar'), '缺手机底部标签栏 .tabbar');
+  // #65：全站只有一根浅色顶部导航，侧栏与底部标签栏退场。
+  assert.ok(text.includes('.topbar'), '缺顶部导航 .topbar');
+  assert.ok(text.includes('.topbar__inner'), '缺顶部导航内容区 .topbar__inner');
+  assert.match(text, /\.topbar__nav/, '缺顶部导航入口 .topbar__nav');
   assert.ok(text.includes('var(--content-max)'), '桌面内容区未引用最大宽度令牌');
 });
 

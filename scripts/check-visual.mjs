@@ -9,10 +9,24 @@ import { join, resolve } from 'node:path';
 
 const DEFAULT_ROOT = fileURLToPath(new URL('..', import.meta.url));
 
-export const TARGET = 'docs/design/ui-preview.html';
+export const TARGET = 'docs/design/closure-board-reference.html';
 export const TOKENS = 'public/css/tokens.css';
 export const PRINT_CSS = 'public/css/print.css';
 export const PAGES = ['index.html', 'inbox.html', 'detail.html', 'print.html', 'library.html', 'settings.html'];
+
+// 参考原型的 .b 主题用短变量名；这里映射到项目令牌，靶子与实现逐项对齐。
+export const PALETTE_MAP = [
+  ['--bg', '--color-canvas'],
+  ['--paper', '--color-surface'],
+  ['--ink', '--color-ink'],
+  ['--muted', '--color-muted'],
+  ['--line', '--color-line'],
+  ['--accent', '--color-accent'],
+  ['--soft', '--color-primary-soft'],
+];
+
+// 全站导航入口：方案 B 是一根顶部导航，换视口不换入口。
+export const NAV_HREFS = ['/', '/inbox', '/print', '/library', '/settings'];
 
 const FONT_STEPS = 7;
 const SPACE_STEPS = 7;
@@ -46,6 +60,18 @@ function darkVars(css) {
   if (at < 0) return null;
   const m = /:root\s*\{([\s\S]*?)\}/.exec(clean.slice(at));
   return m ? varsOf(m[1]) : null;
+}
+
+// 取参考原型 .b 主题的七个色值。参考文件是方案 B 的固定依据：
+// 它可以有 A/C 两套演示，但只有 .b 是本次设计来源。
+export function bPalette(css) {
+  const clean = stripComments(css);
+  const at = clean.indexOf('.b{');
+  if (at < 0) return new Map();
+  const close = clean.indexOf('}', at);
+  const block = clean.slice(at + 3, close < 0 ? undefined : close);
+  // 最后一条声明可能紧贴 `}`，没有分号；补一个再解析，免得丢掉 --paper。
+  return varsOf(`${block};`);
 }
 
 function normalize(value) {
@@ -99,8 +125,8 @@ function readPage(root, file) {
   const dataPage = /data-page="([^"]+)"/.exec(html)?.[1] ?? null;
   const title = /<title>([^<]*)<\/title>/.exec(html)?.[1] ?? '';
   const topbar = /<header class="topbar">([\s\S]*?)<\/header>/.exec(html)?.[1] ?? '';
-  const selfName = /<span class="small muted">([^<]*)<\/span>/.exec(topbar)?.[1] ?? '';
-  const nav = /<nav[^>]*>([\s\S]*?)<\/nav>/.exec(html)?.[1] ?? '';
+  const selfName = /<span class="topbar__aside">([^<]*)<\/span>/.exec(topbar)?.[1] ?? '';
+  const nav = /<nav[^>]*class="topbar__nav"[^>]*>([\s\S]*?)<\/nav>/.exec(html)?.[1] ?? '';
   const navLabels = [...nav.matchAll(/<a href="([^"]+)"[^>]*>([^<]*)<\/a>/g)]
     .map((m) => ({ href: m[1], label: m[2].trim() }));
   return { file, dataPage, names: [title.split('·')[0].trim(), selfName].filter(Boolean), navLabels };
@@ -133,22 +159,29 @@ export function checkVisual(root = DEFAULT_ROOT) {
   const tokensText = readFileSync(tokensPath, 'utf8');
   const printText = readFileSync(printPath, 'utf8');
 
-  // 1. 靶子色板与 tokens 同名变量逐一相等（靶子声明的每一个都要对上）。
+  // 1. 参考原型的方案 B 色板与 tokens 同名变量逐一相等。
   {
-    const targetVars = rootVars(targetText);
+    const targetVars = bPalette(targetText);
     const tokenVars = rootVars(tokensText);
     const list = [];
-    for (const [name, value] of targetVars) {
-      if (!tokenVars.has(name)) {
-        list.push(`${TARGET} 声明了 ${name}，但 ${TOKENS} 里没有这个变量`);
+    let total = 0;
+    for (const [shortName, tokenName] of PALETTE_MAP) {
+      total += 1;
+      if (!targetVars.has(shortName)) {
+        list.push(`${TARGET} 的 .b 主题里没有 ${shortName}，无法作为靶子`);
         continue;
       }
-      const tokenValue = tokenVars.get(name);
-      if (normalize(value) !== normalize(tokenValue)) {
-        list.push(`${name} 色值不一致：靶子是 ${value}，${TOKENS} 是 ${tokenValue}`);
+      if (!tokenVars.has(tokenName)) {
+        list.push(`${TARGET} 声明了 ${shortName}，但 ${TOKENS} 里没有 ${tokenName}`);
+        continue;
+      }
+      const expected = targetVars.get(shortName);
+      const actual = tokenVars.get(tokenName);
+      if (normalize(expected) !== normalize(actual)) {
+        list.push(`${tokenName} 色值不一致：靶子是 ${expected}，${TOKENS} 是 ${actual}`);
       }
     }
-    add('palette', '靶子色板与 tokens 同名变量逐个相等', { errors: list, total: Math.max(targetVars.size, 1) });
+    add('palette', '参考原型的方案 B 色板与 tokens 同名变量逐个相等', { errors: list, total: Math.max(total, 1) });
   }
 
   // 2. 字号阶梯、3. 间距阶梯、4. 圆角阶梯、5. 阴影阶梯
@@ -210,58 +243,37 @@ export function checkVisual(root = DEFAULT_ROOT) {
     add('pages', '六页都引用 tokens.css、都带 data-page 且互不相同', { errors, total: PAGES.length * 2 + 1 });
   }
 
-  // 7. 靶子六屏 01..06 与实际六页一一对应。
+  // 7. 六页共用同一份顶部导航：入口、顺序、文案一致，当前页只标一处。
+  //    方案 B 没有侧栏，导航是唯一入口，错一处就有一页会走丢。
   {
     const errors = [];
-    const screens = [...targetText.matchAll(/<div class="screen-bar"><span>(\d{2})\s*\/\s*([^<]*)<\/span>/g)]
-      .map((m) => ({ no: m[1], title: m[2].trim() }));
-    const expected = Array.from({ length: 6 }, (_, i) => String(i + 1).padStart(2, '0'));
-    for (const no of expected) {
-      if (!screens.some((s) => s.no === no)) errors.push(`${TARGET} 少了第 ${no} 屏`);
-    }
-    for (const s of screens) {
-      if (!expected.includes(s.no)) errors.push(`${TARGET} 多了第 ${s.no} 屏`);
-    }
-
     const pages = PAGES.map((f) => readPage(root, f)).filter((p) => p && p.dataPage);
-    const alias = new Map();
+    const CURRENT = {
+      'index.html': '/', 'detail.html': '/', 'inbox.html': '/inbox',
+      'print.html': '/print', 'library.html': '/library', 'settings.html': '/settings',
+    };
+    let labels = null;
     for (const p of pages) {
-      for (const name of p.names) if (name && !alias.has(name)) alias.set(name, p.dataPage);
-      // 导航里指向本页路由的标签也是这一页的名字（如 /print 的「打印」）
-      const route = routeOf(p.file);
-      for (const link of p.navLabels) {
-        if (link.href === route && link.label && !alias.has(link.label)) alias.set(link.label, p.dataPage);
+      const hrefs = p.navLabels.map((l) => l.href);
+      if (JSON.stringify(hrefs) !== JSON.stringify(NAV_HREFS)) {
+        errors.push(`${p.file} 的导航入口不是工作台/收件箱/打印/题库/设置：${hrefs.join(',')}`);
+      }
+      const pageLabels = p.navLabels.map((l) => l.label);
+      if (pageLabels.some((l) => !l)) errors.push(`${p.file} 有导航入口没有文字`);
+      if (labels === null) labels = pageLabels;
+      else if (JSON.stringify(pageLabels) !== JSON.stringify(labels)) {
+        errors.push(`${p.file} 的导航文案与其它页不一致`);
+      }
+      const current = [...readFileSync(join(root, 'public', p.file), 'utf8')
+        .matchAll(/<a href="([^"]+)"[^>]*aria-current="page"[^>]*>/g)].map((m) => m[1]);
+      const want = CURRENT[p.file];
+      if (!want || current.length !== 1 || current[0] !== want) {
+        errors.push(`${p.file} 的当前页标记应只有一处指向 ${want}，实际是 ${current.join(',') || '无'}`);
       }
     }
-    // 别的页面的导航也可能用这个名字指向本页路由
-    for (const p of pages) {
-      const route = routeOf(p.file);
-      for (const other of pages) {
-        for (const link of other.navLabels) {
-          if (link.href === route && link.label && !alias.has(link.label)) alias.set(link.label, p.dataPage);
-        }
-      }
-    }
-
-    const mapped = [];
-    for (const s of screens) {
-      if (!expected.includes(s.no)) continue;
-      const page = alias.get(s.title);
-      if (!page) {
-        errors.push(`靶子第 ${s.no} 屏的标题「${s.title}」在六页里找不到对应页面`);
-        continue;
-      }
-      mapped.push(page);
-    }
-    const unique = new Set(mapped);
-    if (unique.size !== mapped.length) {
-      errors.push(`靶子六屏与六页不是一一对应：${mapped.join('、')} 有重复`);
-    }
-    const allPages = new Set(pages.map((p) => p.dataPage));
-    if (unique.size === allPages.size && [...allPages].some((p) => !unique.has(p))) {
-      errors.push(`靶子六屏没有覆盖实际六页：缺 ${[...allPages].filter((p) => !unique.has(p)).join('、')}`);
-    }
-    add('screens', '靶子六屏编号 01..06 齐全，且与六页一一对应', { errors, total: 7 });
+    add('nav', '六页共用同一份顶部导航，入口与当前页标记一致', {
+      errors, total: PAGES.length * 4 + 2,
+    });
   }
 
   // 8. 深色覆盖块存在，且核心变量都被覆盖。

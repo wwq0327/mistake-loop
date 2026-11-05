@@ -240,7 +240,7 @@ export async function mountBoard({ root, api }) {
     const buttons = [];
     for (const [result, label] of [['correct', '做对'], ['wrong', '做错']]) {
       const node = button(label, {
-        variant: 'ghost',
+        variant: result === 'correct' ? 'primary' : 'secondary',
         onClick: () => { submitResult(item, result, select, buttons); },
       });
       node.setAttribute('data-result', result);

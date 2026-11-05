@@ -87,7 +87,9 @@ function renderNextAction({ item, stageLabel, requirement }) {
   const row = el('div', 'row');
   if (action) {
     if (action.href) {
-      row.append(link(`${action.label} →`, action.href, 'button button--primary'));
+      // 类名必须是设计系统里的 .btn：写成 .button 会渲染成一条普通链接，
+      // 首屏那个「主入口」在视觉上就消失了（#65 回读时发现）。
+      row.append(link(`${action.label} →`, action.href, 'btn btn--primary'));
     } else {
       row.append(button(action.label, {
         variant: 'primary',
@@ -97,8 +99,7 @@ function renderNextAction({ item, stageLabel, requirement }) {
     const node = row.firstChild;
     node.setAttribute?.('data-next-action', action.key);
   }
-  // 返回看板：看板记得住学科与阶段，回来不用重选（见 board.js 的 FILTER_KEY）。
-  row.append(link('返回看板 →', '/', 'small'));
+  // 返回看板不需要在这里再来一遍：页头右上角已经有一个常驻入口（#65 回读时去重）。
   host.append(row);
 }
 

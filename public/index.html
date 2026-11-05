@@ -13,30 +13,34 @@
 <body data-page="workbench">
   <div class="shell">
     <header class="topbar">
-      <span class="topbar__brand">mistake-loop</span>
-      <span class="topbar__spacer"></span>
-      <span class="small muted">工作台</span>
+      <div class="topbar__inner">
+        <a class="topbar__brand" href="/"><span class="topbar__logo" aria-hidden="true">↻</span>错题循环</a>
+        <nav class="topbar__nav" aria-label="主导航">
+          <a href="/" class="nav-link" aria-current="page">工作台</a>
+          <a href="/inbox" class="nav-link">识别收件箱</a>
+          <a href="/print" class="nav-link">打印</a>
+          <a href="/library" class="nav-link">题库</a>
+          <a href="/settings" class="nav-link">设置</a>
+        </nav>
+        <span class="topbar__aside">教师工作台</span>
+      </div>
     </header>
-    <nav class="sidebar" aria-label="主导航">
-      <span class="sidebar__brand">mistake-loop</span>
-      <a href="/" class="nav-link">工作台</a>
-      <a href="/inbox" class="nav-link">识别收件箱</a>
-      <a href="/print" class="nav-link">打印</a>
-      <a href="/library" class="nav-link">题库</a>
-      <a href="/settings" class="nav-link">设置</a>
-    </nav>
     <main class="main">
       <div class="content">
         <div class="page-head">
-          <h1>闭环看板</h1>
-          <p>一道题一个位置：待诊断 → 诊断中 → 纠错中 → 复习中 → 已掌握。哪一步卡住了，一眼看见。</p>
+          <div class="page-head__text">
+            <p class="page-head__kicker">教师工作台 / 按阶段查看</p>
+            <h1>每道题走到哪了？</h1>
+            <p>按当前阶段找到题目，再打开该阶段需要做的事。同一道题只出现在它此刻所在的那一列。</p>
+          </div>
         </div>
+
+        <div id="workbench-board"></div>
+
         <div class="field">
           <label for="page-q">在本页查找</label>
           <input id="page-q" class="input" type="search" placeholder="输入关键词，过滤本页内容">
         </div>
-
-        <div id="workbench-board"></div>
 
         <div class="grid grid--stats" id="workbench-kpis">
           <a class="card" data-kpi="pendingDrafts" data-kpi-href="/inbox" href="/inbox">
@@ -65,13 +69,6 @@
         <div id="view" class="stack" aria-live="polite"></div>
       </div>
     </main>
-    <nav class="tabbar" aria-label="手机导航">
-      <a href="/" class="tab-link">工作台</a>
-      <a href="/inbox" class="tab-link">收件箱</a>
-      <a href="/print" class="tab-link">打印</a>
-      <a href="/library" class="tab-link">题库</a>
-      <a href="/settings" class="tab-link">设置</a>
-    </nav>
   </div>
   <div id="toast-host" aria-live="polite"></div>
   <script type="module" src="/js/router.js"></script>

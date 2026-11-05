@@ -11,7 +11,8 @@ import { fileURLToPath } from 'node:url';
 import { checkVisual } from '../scripts/check-visual.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const TARGET = 'docs/design/ui-preview.html';
+// #65：视觉靶子从旧账簿稿换成方案 B 参考原型，只认它的 .b 主题。
+const TARGET = 'docs/design/closure-board-reference.html';
 
 // 夹具直接复制真实仓库的相关文件：基线必须是「现在这份真的能过」，
 // 每个用例只改一处，改完就该只坏那一项。
@@ -47,15 +48,15 @@ function edit(dir, rel, fn) {
   writeFileSync(path, fn(readFileSync(path, 'utf8')));
 }
 
-test('#32 靶子色值与 tokens 不一致时必须判失败，并点名变量与两个色值', () => {
+test('#65 参考原型的方案 B 色值与 tokens 不一致时必须判失败，并点名变量与两个色值', () => {
   withRepo((dir) => {
-    edit(dir, TARGET, (text) => text.replace('--color-accent:#b23a2e', '--color-accent:#ff0000'));
+    edit(dir, TARGET, (text) => text.replace('--accent:#175840', '--accent:#ff0000'));
   }, (dir) => {
     const out = checkVisual(dir);
     assert.equal(out.ok, false, '色值不一致没有被判失败');
     const hit = out.errors.find((e) => e.includes('--color-accent'));
     assert.ok(hit, `错误信息未点名 --color-accent：${out.errors.join(' | ')}`);
-    assert.match(hit, /#b23a2e/, '错误信息未包含 tokens 里的色值');
+    assert.match(hit, /#175840/, '错误信息未包含 tokens 里的色值');
     assert.match(hit, /#ff0000/, '错误信息未包含靶子里的色值');
   });
 });
@@ -84,19 +85,16 @@ test('#32 字号阶梯倒挂时必须判失败，并指出哪一级不递增', (
   });
 });
 
-test('#32 靶子少一屏时必须判失败，并点名缺的编号', () => {
+test('#65 某页导航少一个入口时必须判失败，并点名那一页', () => {
   withRepo((dir) => {
-    edit(dir, TARGET, (text) => {
-      const start = text.indexOf('<section class="screen">', text.indexOf('04 / 打印') - 400);
-      const end = text.indexOf('<section class="screen">', start + 10);
-      return text.slice(0, start) + text.slice(end);
-    });
+    edit(dir, 'public/library.html', (text) => text.replace(
+      '<a href="/settings" class="nav-link">设置</a>', ''));
   }, (dir) => {
     const out = checkVisual(dir);
-    assert.equal(out.ok, false, '靶子少一屏没有被判失败');
+    assert.equal(out.ok, false, '导航缺入口没有被判失败');
     assert.ok(
-      out.errors.some((e) => /0?4/.test(e)),
-      `错误信息未点名缺的屏编号：${out.errors.join(' | ')}`,
+      out.errors.some((e) => e.includes('library.html')),
+      `错误信息未点名缺入口的页面：${out.errors.join(' | ')}`,
     );
   });
 });

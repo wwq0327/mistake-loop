@@ -1,4 +1,5 @@
-/* 基础层：重置、排版、纸面、可访问性。颜色一律引用 tokens.css，不写死色值。 */
+/* 基础层：重置、排版、可访问性。颜色一律引用 tokens.css，不写死色值。
+   方案 B 的底是干净的浅绿画布：没有纸纹、没有账格，内容靠留白和线条分层。 */
 
 *, *::before, *::after { box-sizing: border-box; }
 
@@ -13,24 +14,21 @@ html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0;
   background-color: var(--color-canvas);
-  background-image: var(--texture-paper);
-  background-size: var(--texture-size);
-  background-position: var(--texture-offset);
   color: var(--color-ink);
   font-family: var(--font-body);
   font-size: var(--font-3);
   line-height: var(--line-body);
 }
 
-/* 活字标题：账簿的页名用衬线，字距略开，不用清一色 600 无衬线 */
+/* 标题：宋体只用在标题上，字距收紧，标题当版面主体而不是装饰 */
 h1, h2, h3, h4 {
   margin: 0;
   font-family: var(--font-display);
-  font-weight: 600;
+  font-weight: 700;
   line-height: var(--line-tight);
-  letter-spacing: .015em;
+  letter-spacing: -.02em;
 }
-h1 { font-size: var(--font-6); }
+h1 { font-size: clamp(34px, 5vw, 58px); letter-spacing: -.045em; }
 h2 { font-size: var(--font-5); }
 h3 { font-size: var(--font-4); }
 h4 { font-size: var(--font-3); }
@@ -39,18 +37,20 @@ p { margin: 0 0 var(--space-3); }
 a { color: var(--color-primary); text-underline-offset: 3px; }
 img { max-width: 100%; height: auto; }
 button, input, select, textarea { font: inherit; color: inherit; }
+button, a, select { touch-action: manipulation; }
+button { cursor: pointer; }
 
+/* 焦点环用深绿，画布上足够醒目，不靠颜色跳脱 */
 :focus-visible {
-  outline: 2px solid var(--color-accent);
+  outline: 3px solid var(--color-accent);
   outline-offset: 3px;
 }
 
-/* 划选像红笔圈重点 */
-::selection { background: var(--color-accent); color: var(--color-surface); }
+::selection { background: var(--color-primary-soft); color: var(--color-ink); }
 
-/* 一次编排好的页面载入：纸页按序落桌，具体延迟由 layout.css 给 nth-child */
-@keyframes ledger-in {
-  from { opacity: 0; transform: translateY(10px); }
+/* 一次编排好的页面载入：只做轻微上浮，不做满屏乱飞 */
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
