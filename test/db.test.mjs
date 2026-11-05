@@ -69,11 +69,12 @@ describe('数据库约束与事务', () => {
     closeDb(db);
   });
 
-  it('D5 三个查询索引齐备', () => {
+  it('D5 查询索引齐备（含 v4 的 AI 任务索引）', () => {
     const db = makeDb();
     const names = db.prepare("SELECT name FROM sqlite_master WHERE type='index' AND name LIKE 'idx_%'")
       .all().map((r) => r.name).sort();
-    assert.deepEqual(names, ['idx_next_review', 'idx_node', 'idx_subject']);
+    // v4（#71）新增 ai_tasks 的两条索引：按对象查阶段任务、按状态扫队列。
+    assert.deepEqual(names, ['idx_ai_tasks_status', 'idx_ai_tasks_target', 'idx_next_review', 'idx_node', 'idx_subject']);
     closeDb(db);
   });
 

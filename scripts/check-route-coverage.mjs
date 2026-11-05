@@ -16,6 +16,11 @@ const DEFAULT_ROOT = join(here, '..');
 export const EXEMPTIONS = {
   'POST /api/mistakes': '手工新建错题走「收件箱草稿确认」那条路，这个接口留给脚本与批量导入',
   'GET /api/textbook-nodes': '冗余接口，/api/meta 已经带 textbookNodes，前端不需要单独取',
+  // #71 先把编排与草稿落库做出来，界面入口在 #74「今日动作区与集中核对」才接；
+  // 接上后这三条豁免要删掉，别让「后端有、界面没有」重新变成默认状态。
+  'POST /api/ai/tasks': '任务由 #74 的今日动作区触发，编排先落地；#74 完成后删除本条豁免',
+  'GET /api/ai/tasks': '任务状态由 #74 的题卡与今日动作区读取；#74 完成后删除本条豁免',
+  'POST /api/ai/tasks/:id/retry': '失败重试按钮在 #74 的任务状态卡片里；#74 完成后删除本条豁免',
 };
 
 function collectFiles(dir, accept) {

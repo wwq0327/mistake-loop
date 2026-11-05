@@ -2,7 +2,7 @@ import express from 'express';
 import { mkdirSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { openDb, migrate, needsV3Migration, closeDb } from './db.mjs';
+import { openDb, migrate, needsV3Migration, needsV4Migration, closeDb } from './db.mjs';
 import { startScheduler } from './scheduler.mjs';
 import { nowIso, today } from './lib/dates.mjs';
 import { createMetaRouter } from './routes/meta.mjs';
@@ -12,13 +12,15 @@ import { createReviewsRouter } from './routes/reviews.mjs';
 import { createPrintRouter } from './routes/print.mjs';
 import { createRecognitionsRouter } from './routes/recognitions.mjs';
 import { createSettingsRouter } from './routes/settings.mjs';
+import { createAiRouter } from './routes/ai.mjs';
+import { runTaskOnce, recoverStaleTasks } from './ai/tasks.mjs';
 import { createProvider } from './ai/provider.mjs';
 import { createJobWorker } from './ai/jobs.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const publicDir = join(here, '..', 'public');
 
-export function createApp({ db, dataDir, schedulerState = { running: false, lastRunAt: null, lastResult: null }, recognitionWorker = null, aiStatus = null, aiControl = null, settingsBackup = null }) {
+export function createApp({ db, dataDir, schedulerState = { running: false, lastRunAt: null, lastResult: null }, recognitionWorker = null, aiStatus = null, aiControl = null, settingsBackup = null, aiPipeline = null }) {
   const app = express();
   app.disable('x-powered-by');
   app.use(express.json({ limit: '25mb' }));
@@ -40,6 +42,7 @@ export function createApp({ db, dataDir, schedulerState = { running: false, last
   app.use('/api', createPrintRouter({ db }));
   app.use('/api', createRecognitionsRouter({ db, dataDir, worker: recognitionWorker, aiStatus }));
   app.use('/api', createSettingsRouter({ dataDir, aiControl, backupRunner: settingsBackup }));
+  app.use('/api', createAiRouter({ db, pipeline: aiPipeline, aiControl }));
 
   // 六页信息架构：路径按动作命名，静态文件名只作载体。
   const pageRoutes = [
@@ -76,11 +79,13 @@ if (isMain) {
   mkdirSync(join(dataDir, 'images'), { recursive: true });
 
   const db = openDb(join(dataDir, 'mistakes.db'));
-  // 迁移纪律：检测到缺列先自动备份再升级（v3 设计提案确认项）。
-  if (needsV3Migration(db)) {
+  // 迁移纪律：检测到结构差异先自动备份再升级（v3 缺列、v4 缺表都算）。
+  // 空库没有旧数据可备份，needsXxxMigration 已经排除掉这种情况（见 #78）。
+  const pending = [needsV3Migration(db) ? 'v3' : null, needsV4Migration(db) ? 'v4' : null].filter(Boolean);
+  if (pending.length) {
     const { backup } = await import('../scripts/backup.mjs');
     const result = backup({ dataDir, outputDir: join(dataDir, 'backups') });
-    console.log(`[mistake-loop] v3 迁移前已自动备份：${result.target}`);
+    console.log(`[mistake-loop] ${pending.join('/')} 迁移前已自动备份：${result.target}`);
   }
   migrate(db);
   db.prepare("INSERT OR IGNORE INTO students (id, name, created_at) VALUES (1, '默认学生', ?)")
@@ -111,7 +116,19 @@ if (isMain) {
       pendingDrafts: db.prepare("SELECT COUNT(*) c FROM recognition_drafts WHERE status = 'pending'").get().c,
     };
   };
-  const app = createApp({ db, dataDir, schedulerState: scheduler.state, recognitionWorker, aiStatus, aiControl });
+  // 启动先把上次死在 running 的任务收回来（#71 重启恢复），再开始跑队列。
+  const recovered = recoverStaleTasks(db, { now: nowIso });
+  if (recovered.requeued || recovered.failed) {
+    console.log(`[mistake-loop] AI 任务恢复：回队 ${recovered.requeued}，失败 ${recovered.failed}`);
+  }
+  const aiPipeline = { provider: aiProvider, quota: aiProvider.config.dailyLimit, now: nowIso };
+  const aiTimer = setInterval(() => {
+    if (!aiControl.enabled) return;
+    void runTaskOnce({ db, provider: aiProvider, now: nowIso }).catch(() => {});
+  }, 3000);
+  aiTimer.unref?.();
+
+  const app = createApp({ db, dataDir, schedulerState: scheduler.state, recognitionWorker, aiStatus, aiControl, aiPipeline });
   const port = Number(process.env.PORT || 8080);
   const server = app.listen(port, () => {
     // 绑定失败时监听回调同样会被调用，而 address() 是 null：
@@ -131,6 +148,7 @@ if (isMain) {
   });
 
   const shutdown = () => {
+    clearInterval(aiTimer);
     scheduler.stop();
     void recognitionWorker.stop();
     server.close(() => {

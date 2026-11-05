@@ -17,6 +17,7 @@ export function migrate(db) {
   db.exec(readFileSync(join(here, 'schema.sql'), 'utf8'));
   migrateV2(db);
   migrateV3(db);
+  migrateV4(db);
 }
 
 // v3（P17 设计提案已确认）：variants 学生验证三列 + mistakes 干净题面两列。
@@ -55,6 +56,22 @@ export function migrateV3(db) {
   };
   apply('mistakes', V3_MISTAKE_COLUMNS);
   apply('variants', V3_VARIANT_COLUMNS);
+}
+
+// v4（#71 设计提案已确认）：AI 阶段任务表。纯新增表，无列变更、无存量改写；
+// 旧库执行等于建一张空表，回滚只需 git revert，表留着无害。
+export function migrateV4(db) {
+  db.exec(readFileSync(join(here, 'schema-v4.sql'), 'utf8'));
+}
+
+export function needsV4Migration(db) {
+  // 与 v3 同一条纪律：空库不算「缺表」，migrate() 会一次建到 v4。
+  // 不先判基础表的话，全新安装会被判成要升级、进而在空库上跑迁移备份（#78 的同类坑）。
+  const baseReady = db.prepare(
+    "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'mistakes'",
+  ).get() !== undefined;
+  if (!baseReady) return false;
+  return db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'ai_tasks'").get() === undefined;
 }
 
 // v2 幂等升级：建新表 + 给已有 mistakes 补溯源列。
