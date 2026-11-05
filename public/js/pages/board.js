@@ -31,6 +31,19 @@ const MOBILE_QUERY = '(max-width: 767px)';
 // 题库查询的服务端上限：返回条数撞上这个数就说明可能还有没拿回来的。
 const LIST_LIMIT = 500;
 
+// 掌握证据的中文名。服务端 /api/meta 下发可用的类型，这里只管怎么念。
+const EVIDENCE_LABEL = {
+  retell: '复述',
+  transfer: '同结构变式',
+  spaced: '间隔提取',
+  check_method: '说出检查方法',
+  teach: '讲给别人听',
+};
+
+// review_round 记的是「已经做完几轮」，所以第 4 轮做对时它是 3。
+// 与服务端一致（applyReview 的闸门），也与工作台那条 resultNeedsEvidence 同一口径。
+const EVIDENCE_FROM_ROUND = 3;
+
 function isMobile() {
   try {
     return globalThis.matchMedia?.(MOBILE_QUERY)?.matches === true;
@@ -89,6 +102,8 @@ export async function mountBoard({ root, api }) {
   // 免得快速切学科时旧结果盖掉新筛选（#61）。
   let requestToken = 0;
   let current = null;
+  // 正在提交的题：按钮置灰之外的第二道闸，挡住「已经点下去的那一下」。
+  const busy = new Set();
 
   const board = el('div', 'board');
 
@@ -188,7 +203,88 @@ export async function mountBoard({ root, api }) {
     }
     foot.append(link('查看详情 →', `/mistake/${item.id}`, 'board__link'));
     card.append(foot);
+    // 到期的题就地登记，不用再滚回工作台那张列表另找一遍（#63）。
+    if (due) card.append(reviewActions(item));
     return card;
+  }
+
+  // 到期题的做对/做错。提交必须带 due_on：那是「这次复习」的身份，
+  // 后端靠它判重，连点两下才不会被记成两轮。
+  function reviewActions(item) {
+    const box = el('div', 'board__review');
+    box.setAttribute('data-review-for', String(item.id));
+
+    let select = null;
+    if ((item.review_round ?? 0) >= EVIDENCE_FROM_ROUND) {
+      const field = el('div', 'field');
+      const label = el('label', '', '学生掌握证据（第 4 轮必填）');
+      label.htmlFor = `board-evidence-${item.id}`;
+      select = el('select', 'select');
+      select.id = `board-evidence-${item.id}`;
+      select.setAttribute('data-evidence', String(item.id));
+      // 第一项是空值占位：不预选任何一条，掌握证据必须由老师看着学生说出来再选。
+      const blank = el('option', '', '请选择观察到的证据');
+      blank.value = '';
+      select.append(blank);
+      for (const kind of current?.evidenceKinds ?? Object.keys(EVIDENCE_LABEL)) {
+        const option = el('option', '', EVIDENCE_LABEL[kind] || kind);
+        option.value = kind;
+        select.append(option);
+      }
+      select.value = '';
+      field.append(label, select);
+      box.append(field);
+    }
+
+    const row = el('div', 'board__row');
+    const buttons = [];
+    for (const [result, label] of [['correct', '做对'], ['wrong', '做错']]) {
+      const node = button(label, {
+        variant: 'ghost',
+        onClick: () => { submitResult(item, result, select, buttons); },
+      });
+      node.setAttribute('data-result', result);
+      buttons.push(node);
+      row.append(node);
+    }
+    box.append(row);
+    return box;
+  }
+
+  async function submitResult(item, result, select, buttons) {
+    // 在途禁重复提交：置灰挡得住鼠标，挡不住「已经点下去的那一下」，所以还要一个忙标记。
+    if (busy.has(item.id)) return;
+    const needsEvidence = (item.review_round ?? 0) >= EVIDENCE_FROM_ROUND;
+    const evidenceType = select?.value ?? '';
+    if (result === 'correct' && needsEvidence && !evidenceType) {
+      toast(`第 ${item.id} 题要记做对，先选一条你观察到的掌握证据。`, 'error');
+      return;
+    }
+
+    busy.add(item.id);
+    for (const node of buttons) node.disabled = true;
+    const body = { result, due_on: item.next_review };
+    if (evidenceType) body.evidence_type = evidenceType;
+
+    try {
+      await api(`/api/reviews/${item.id}/result`, { method: 'POST', body });
+    } catch (error) {
+      toast(describeError(error), 'error');
+      busy.delete(item.id);
+      for (const node of buttons) node.disabled = false;
+      return;
+    }
+
+    busy.delete(item.id);
+    toast(`第 ${item.id} 题：${result === 'correct' ? '已记做对' : '已记做错'}。`);
+
+    // 写成功不等于界面知道了新状态：必须重新读取，按服务端结果归列。
+    try {
+      await load({ silent: true });
+    } catch (error) {
+      // 读不回来就别动卡片——凭猜把卡挪走，比停在原处更糟。
+      toast(`第 ${item.id} 题已记上，但刷新没成功：${describeError(error)}。稍后刷新页面即可，别重复提交。`, 'error');
+    }
   }
 
   function renderColumns(buckets, dueMap) {
@@ -278,9 +374,14 @@ export async function mountBoard({ root, api }) {
     return buckets;
   }
 
-  async function load() {
+  /**
+   * 取数并渲染。
+   * silent=true 用于「写完再读回」：不画骨架、失败不改版面，直接抛给调用方，
+   * 由它把「已记上但刷新失败」说清楚——读不回来时把看板清成错误态属于帮倒忙。
+   */
+  async function load({ silent = false } = {}) {
     const token = ++requestToken;
-    renderSkeleton();
+    if (!silent) renderSkeleton();
     const path = subject === 'all' ? '/api/mistakes' : `/api/mistakes?subject=${subject}`;
     try {
       const [list, reviews, meta] = await Promise.all([
@@ -295,12 +396,13 @@ export async function mountBoard({ root, api }) {
       const dueMap = new Map();
       for (const item of reviews?.items || []) dueMap.set(item.id, item);
       const buckets = bucketsOf(items, dueMap);
-      current = { buckets, dueMap };
+      current = { buckets, dueMap, evidenceKinds: meta?.evidenceKinds ?? null };
       renderChips();
       renderColumns(buckets, dueMap);
       renderSummary(items, meta, items.length >= LIST_LIMIT || Number(list?.total || 0) >= LIST_LIMIT);
     } catch (error) {
       if (token !== requestToken) return;
+      if (silent) throw error;
       renderError(error);
     }
   }
