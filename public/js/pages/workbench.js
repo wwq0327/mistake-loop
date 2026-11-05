@@ -1,6 +1,7 @@
-// 工作台：四个数字实时聚合、每个直达动作；今日复习按到期日排，做对做错与证据入口都在本页。
+// 工作台：闭环看板为主体，四个数字实时聚合、每个直达动作；今日复习按到期日排，做对做错与证据入口都在本页。
 import { el, stateTag, link, alert, button, toast } from '../ui.js';
 import { describeError } from '../api.js';
+import { mountBoard } from './board.js';
 
 const SUBJECT_LABEL = { math: '数学', chinese: '语文', english: '英语' };
 const STATUS_LABEL = { new: '待诊断', diagnosing: '诊断中', correcting: '纠错中', reviewing: '复习中', mastered: '已掌握' };
@@ -14,6 +15,15 @@ function bodyOf(id) {
 }
 
 export async function mount({ root, api, state }) {
+  // 看板是工作台的主体，但它读不到时不该把整页一起带下水：
+  // 下面的数字、复习入口还得能用。失败要说人话，不能静悄悄空着（#58）。
+  const boardRoot = document.getElementById('workbench-board');
+  const boardPromise = boardRoot
+    ? mountBoard({ root: boardRoot, api }).catch((error) => {
+      boardRoot.replaceChildren(alert(`看板没能加载：${describeError(error)}`, 'error'));
+    })
+    : Promise.resolve();
+
   const [meta, reviews, aiStatus] = await Promise.all([
     api('/api/meta'),
     api('/api/reviews/today'),
@@ -120,6 +130,7 @@ export async function mount({ root, api, state }) {
     }
   }
   root.replaceChildren(alert(`统计来自实时查询：共 ${meta.stats.total} 道题，复习中 ${meta.stats.byStatus.reviewing} 道。`, 'info'));
+  await boardPromise;
 }
 
 function resultNeedsEvidence(item) {

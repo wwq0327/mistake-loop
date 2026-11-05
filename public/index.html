@@ -28,13 +28,15 @@
     <main class="main">
       <div class="content">
         <div class="page-head">
-          <h1>今天该做什么</h1>
-          <p>四个数字，四个动作。到期的题自己会出现，不用手动算日子。</p>
+          <h1>闭环看板</h1>
+          <p>一道题一个位置：待诊断 → 诊断中 → 纠错中 → 复习中 → 已掌握。哪一步卡住了，一眼看见。</p>
         </div>
         <div class="field">
           <label for="page-q">在本页查找</label>
           <input id="page-q" class="input" type="search" placeholder="输入关键词，过滤本页内容">
         </div>
+
+        <div id="workbench-board"></div>
 
         <div class="grid grid--stats" id="workbench-kpis">
           <a class="card" data-kpi="pendingDrafts" data-kpi-href="/inbox" href="/inbox">

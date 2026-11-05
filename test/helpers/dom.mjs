@@ -12,6 +12,9 @@ export class ShimNode {
     this.localName = tag;
     this.namespaceURI = namespaceURI;
     this.children = [];
+    // 父指针：后代组合选择器（'.a .b'）要靠祖先链判断，
+    // 真浏览器就是这么匹配的，垫片不能差这一条。
+    this.parent = null;
     this.attributes = {};
     this.className = '';
     this.textContent = '';
@@ -43,11 +46,30 @@ export class ShimNode {
       set(value) { classes.clear(); String(value).split(/\s+/).filter(Boolean).forEach((n) => classes.add(n)); },
       configurable: true,
     });
+    // href 同理：浏览器里 href 是可读属性，赋值后 getAttribute 也要读得到。
+    // 早先只是普通赋值，于是 getAttribute('href') 恒为 null——
+    // 「这链接到底指向哪」这类断言全都落空。
+    Object.defineProperty(this, 'href', {
+      get() { return this.getAttribute('href') ?? ''; },
+      set(value) { this.setAttribute('href', String(value)); },
+      configurable: true,
+    });
   }
 
-  append(...nodes) { this.children.push(...nodes); }
+  append(...nodes) {
+    for (const node of nodes) {
+      if (node instanceof ShimNode) node.parent = this;
+      this.children.push(node);
+    }
+  }
 
-  replaceChildren(...nodes) { this.children = [...nodes]; }
+  replaceChildren(...nodes) {
+    this.children = [];
+    for (const node of nodes) {
+      if (node instanceof ShimNode) node.parent = this;
+      this.children.push(node);
+    }
+  }
 
   // firstChild / lastChild / childElementCount：页面代码会用它们找挂载点，
   // 缺了会在「append of undefined」这种看不出业务含义的地方炸。
@@ -110,7 +132,17 @@ export class ShimNode {
   }
 
   querySelectorAll(selector) {
-    return this.descendants().filter((node) => matches(node, selector));
+    // 逗号分组 + 后代组合都要支持：真实浏览器里 '.a .b, .c' 是两组选择器，
+    // 早先的垫片按空格切分，逗号被切进选择器里，于是「同时匹配」变成「或」的反面，
+    // 查询结果悄悄变空——断言空转通过，看起来是绿的，什么也没测到。
+    const out = [];
+    for (const group of splitSelectorGroups(selector)) {
+      const parts = group.split(/\s+/).filter(Boolean);
+      for (const node of this.descendants()) {
+        if (matchesChain(node, parts) && !out.includes(node)) out.push(node);
+      }
+    }
+    return out;
   }
 
   querySelector(selector) {
@@ -130,8 +162,7 @@ export function textOf(node) {
 }
 
 // 选择器只支持页面代码实际用到的几种：#id、.class、tag、[attr] 及其组合。
-export function matches(node, selector) {
-  return selector.split(',').map((s) => s.trim()).filter(Boolean).some((part) => {
+export function matches(node, selector) {  return selector.split(',').map((s) => s.trim()).filter(Boolean).some((part) => {
     const conditions = part.match(/#[\w-]+|\.[\w-]+|\[[^\]]+\]|^[a-zA-Z][\w-]*/g) || [];
     return conditions.every((cond) => {
       if (cond.startsWith('#')) return node.id === cond.slice(1);
@@ -146,6 +177,43 @@ export function matches(node, selector) {
       return node.localName === cond;
     });
   });
+}
+
+// 把选择器按顶层逗号分成若干组（方括号里的逗号不算分隔符）。
+export function splitSelectorGroups(selector) {
+  const groups = [];
+  let depth = 0;
+  let current = '';
+  for (const ch of String(selector)) {
+    if (ch === '[') depth += 1;
+    else if (ch === ']') depth -= 1;
+    if (ch === ',' && depth === 0) {
+      groups.push(current);
+      current = '';
+      continue;
+    }
+    current += ch;
+  }
+  groups.push(current);
+  return groups.map((group) => group.trim()).filter(Boolean);
+}
+
+// 后代组合选择器：'.a .b' 要求节点自己匹配 .b，且祖先里有一个匹配 .a。
+// 真浏览器就是这么匹配的；垫片早先把它当成「同一元素满足全部条件」，
+// 于是 '.列 .卡' 永远匹配不到——测试因此出现「明明渲染了却说找不到」。
+export function matchesChain(node, parts) {
+  if (!parts.length) return true;
+  // 自己匹配最右一段，再沿祖先链回溯剩下的段。
+  const last = parts[parts.length - 1];
+  const rest = parts.slice(0, -1);
+  if (!matches(node, last)) return false;
+  if (!rest.length) return true;
+  let parent = node.parent;
+  while (parent) {
+    if (matchesChain(parent, rest)) return true;
+    parent = parent.parent;
+  }
+  return false;
 }
 
 // XML 解析：够用且够严。标签没闭合、根元素不是一个，都给 parsererror——
@@ -221,20 +289,15 @@ export function installDom({ ids = [], location: locationOption = null } = {}) {
     // 支持后代组合选择器（如 '#detail-variants .card__body'）：
     // 页面代码用 bodyOf(id) 找「区块里的内容区」，只认单段选择器会退化成
     // 按整串 id 现造一个空节点——内容渲染进了游离节点，测试自然找不到。
+    // 与 querySelectorAll 走同一套匹配逻辑（逗号分组 + 后代组合）。
     querySelector: (selector) => {
-      const parts = selector.trim().split(/\s+/).filter(Boolean);
-      let scope = [body];
-      for (const part of parts) {
-        const found = [];
-        for (const node of scope) {
-          for (const candidate of node.descendants()) {
-            if (matches(candidate, part) && !found.includes(candidate)) found.push(candidate);
-          }
+      for (const group of splitSelectorGroups(selector)) {
+        const parts = group.split(/\s+/).filter(Boolean);
+        for (const candidate of body.descendants()) {
+          if (matchesChain(candidate, parts)) return candidate;
         }
-        scope = found;
-        if (!scope.length) break;
       }
-      return scope[0] ?? null;
+      return null;
     },
     querySelectorAll: (selector) => body.querySelectorAll(selector),
   };

@@ -70,6 +70,10 @@
 .grid { display: grid; grid-template-columns: 1fr; gap: var(--space-3); }
 .split { display: flex; flex-direction: column; gap: var(--space-3); }
 .split__pane { min-width: 0; }
+
+/* 闭环看板的列：手机一列（显示哪一列由 JS 决定），平板换行，桌面五列并排。
+   minmax(0, 1fr) 是为了列里塞长题干时也不把整页撑出横向滚动。 */
+.board__columns { display: grid; grid-template-columns: 1fr; gap: var(--space-3); }
 .fab {
   position: fixed;
   right: var(--space-4);
@@ -104,6 +108,8 @@
   .split__pane { flex: 1 1 0; }
   .split--tabs { display: block; }
   .content { max-width: var(--content-max); }
+  /* 平板：看板列按可用宽度换行，不硬塞五列 */
+  .board__columns { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
 }
 
 /* 桌面 1025px 起：墨色书脊 + 内容区，收件箱左图右表不对称分栏 */
@@ -165,6 +171,8 @@
   .split { flex-direction: row; align-items: flex-start; }
   .split__pane--figure { position: sticky; top: var(--space-5); flex: 0 0 40%; }
   .fab { bottom: var(--space-5); }
+  /* 桌面：五态并排，一列一个阶段 */
+  .board__columns { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 }
 
 /* 大屏 1440px：内容区封顶，避免一行拉得过长 */
