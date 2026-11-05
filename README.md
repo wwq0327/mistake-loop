@@ -178,6 +178,7 @@ docker compose up -d --build
 | [AI 学习闭环规格](docs/requirements/AI-learning-loop-spec.md) | v3 AI 分析、出题、学习证据及待确认的数据契约 |
 | [AI 闭环施工计划](docs/plans/2026-11-05-ai-learning-loop-plan.md) | P17–P19 任务依赖与开工条件 |
 | [P17 设计提案](docs/plans/2026-11-05-p17-schema-proposal.md) | 验证分离、干净题面、日期口径的 schema 与政策提案，待确认 |
+| [P18/P19 设计提案](docs/plans/2026-11-05-p18-p19-schema-proposal.md) | AI 任务编排、练习批次、分级结果与试运行记录的 schema 提案，待确认 |
 | [学习效率审阅](docs/audits/2026-11-05-learning-efficiency-review.md) | 代码复现、飞书文章对照、单学生优化方案 |
 | [AI 闭环开发交接](docs/handoffs/2026-11-05-ai-learning-loop-handoff.md) | 接手顺序、授权边界与验收步骤 |
 
